@@ -5,10 +5,12 @@
 #include <vector>
 #include <unordered_map>
 
-struct Token {
+#include "common.hpp"
+
+class Token {
 
 public:
-	enum Kind {
+	enum class Kind {
 		TkEOF,
 		Func,
 		Number,
@@ -54,14 +56,30 @@ public:
 	};
 
 public:
+	Token(
+		Kind kindType,
+		void* data,
+		std::string text,
+		std::size_t line,
+		std::size_t col
+	) : 
+		KindType(kindType),
+		Data(data),
+		Text(text), 
+		Line(line), 
+		Col(col)
+	{ }
 	Kind KindType;
 	void* Data;
 	std::string Text;
 	std::size_t Line;
 	std::size_t Col;
 
+	static std::string ToString(Kind kind);
+
 };
 
+using RToken = Ref<Token>;
 
 static const std::unordered_map<std::string, Token::Kind> Words{
 	{ "func", Token::Kind::Func},
@@ -109,7 +127,7 @@ public:
 	static const char Equal = '=';
 	
 public:
-	std::vector<Token> Scan();
+	std::vector<Ref<Token>> Scan();
 	void NextToken();
 
 private:
@@ -137,7 +155,7 @@ private:
 	std::size_t m_start;
 	std::size_t m_line;
 	std::size_t m_col;
-	std::vector<Token> m_tokens;
+	std::vector<Ref<Token>> m_tokens;
 
 };
 

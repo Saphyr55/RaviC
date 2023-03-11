@@ -12,20 +12,20 @@ Lexer::Lexer(const std::string_view text) :
 
 }
 
-std::vector<Token> Lexer::Scan() {
+std::vector<RToken> Lexer::Scan() {
     
     while (!IsAtEnd()) {
         m_start = m_position;
         NextToken();
     }
 
-    m_tokens.push_back({ 
+	m_tokens.push_back(std::make_shared<Token>(
         Token::Kind::TkEOF,
-        nullptr, 
+        nullptr,
         "\0",
 		m_line,
 		m_col
-    });
+	));
     return m_tokens;
 }
 
@@ -134,14 +134,14 @@ void Lexer::NextToken() {
 }
 
 void Lexer::AddToken(Token::Kind kind, void* value) {
-    std::cout << kind << "\n";
-    m_tokens.push_back({ 
+    std::cout << Token::ToString(kind) << "\n";
+	m_tokens.push_back(std::make_shared<Token>(
         kind,
-        value,
-        m_text.substr(m_start, m_position - m_start),
-        m_line,
-        m_col 
-    });
+		value,
+		m_text.substr(m_start, m_position - m_start),
+		m_line,
+		m_col
+    ));
 }
 
 bool Lexer::Match(const char expected) {
@@ -234,3 +234,95 @@ void Lexer::Report(std::string message) {
 	std::cout << "Error:" << message << " at [" << (m_line + 1) << "," << (m_col + 1) << "].\n";
 }
 
+std::string Token::ToString(Kind kind)
+{
+    switch (kind)
+    {
+    case Token::Kind::TkEOF:
+        break;
+    case Token::Kind::Func:
+        break;
+    case Token::Kind::Number:
+        break;
+    case Token::Kind::Let:
+        break;
+    case Token::Kind::Mut:
+        break;
+    case Token::Kind::Return:
+        break;
+    case Token::Kind::Identifier:
+        break;
+    case Token::Kind::True:
+        break;
+    case Token::Kind::False:
+        break;
+    case Token::Kind::Struct:
+        break;
+    case Token::Kind::Class:
+        break;
+    case Token::Kind::While:
+        break;
+    case Token::Kind::For:
+        break;
+    case Token::Kind::If:
+        break;
+    case Token::Kind::Else:
+        break;
+    case Token::Kind::Namespace:
+        break;
+    case Token::Kind::Less:
+        break;
+    case Token::Kind::LessEqual:
+        break;
+    case Token::Kind::Greater:
+        break;
+    case Token::Kind::GreaterEqual:
+        break;
+    case Token::Kind::Semicolon:
+        break;
+    case Token::Kind::Colon:
+        break;
+    case Token::Kind::Dot:
+        break;
+    case Token::Kind::Arrow:
+        break;
+    case Token::Kind::OpenBracket:
+        break;
+    case Token::Kind::CloseBracket:
+        break;
+    case Token::Kind::OpenParenthesis:
+        break;
+    case Token::Kind::CloseParenthesis:
+        break;
+    case Token::Kind::BinaryAnd:
+        break;
+    case Token::Kind::LogicalAnd:
+        break;
+    case Token::Kind::BinaryOr:
+        break;
+    case Token::Kind::LogicalOr:
+        break;
+    case Token::Kind::Comma:
+        break;
+    case Token::Kind::Assign:
+        break;
+    case Token::Kind::Not:
+        break;
+    case Token::Kind::NotEqual:
+        break;
+    case Token::Kind::Equal:
+        break;
+    case Token::Kind::Minus:
+        break;
+    case Token::Kind::Plus:
+        break;
+    case Token::Kind::Star:
+        break;
+    case Token::Kind::Slash:
+        return "/";
+    case Token::Kind::String:
+        return "string";
+    default:
+        break;
+    }
+}
