@@ -59,7 +59,7 @@ public:
 	Token(
 		Kind kindType,
 		void* data,
-		std::string text,
+		std::string_view text,
 		std::size_t line,
 		std::size_t col
 	) : 

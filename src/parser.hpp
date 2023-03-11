@@ -8,14 +8,15 @@
 class Parser {
 	
 public:
-	Parser(Lexer lexer);
+	Parser(std::vector<Ref<Token>> tokens);
+	static std::vector<AST::RStatement> Parse(const std::string_view text);
 	std::vector<AST::RStatement> Parse();
 
 private:
 	Ref<AST::Statement> CreateDeclaration();
 	Ref<AST::Statement> CreateStructStatement();
 	Ref<AST::Statement> CreateClassStatement();
-	Ref<AST::Statement> CreateFunction(bool isLambda);
+	Ref<AST::Stmt::Function> CreateFunction(bool isLambda);
 	Ref<AST::Statement> CreateLetStatement();
 	Ref<AST::Statement> CreatePropertyDeclaration();
 	Ref<AST::Statement> CreateReturnStatement();
@@ -50,8 +51,9 @@ private:
 	Ref<Token> Previous(const std::int32_t offset);
 	static std::exception Report(Ref<Token>, const std::string&);
 	static std::string Diagnostic(Ref<Token>, const std::string&);
+
 private:
 	std::vector<Ref<Token>> m_tokens;
 	std::size_t m_current = 0;
-	std::vector<AST::Statement> m_statements;
+	std::vector<Ref<AST::Statement>> m_statements;
 };

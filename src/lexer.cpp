@@ -9,7 +9,6 @@ Lexer::Lexer(const std::string_view text) :
     m_col(0),
     m_line(0),
     m_position(0) {
-
 }
 
 std::vector<RToken> Lexer::Scan() {
@@ -134,7 +133,6 @@ void Lexer::NextToken() {
 }
 
 void Lexer::AddToken(Token::Kind kind, void* value) {
-    std::cout << Token::ToString(kind) << "\n";
 	m_tokens.push_back(std::make_shared<Token>(
         kind,
 		value,
