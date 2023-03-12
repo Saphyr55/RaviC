@@ -60,11 +60,11 @@ void Lexer::NextToken() {
         AddToken(Token::Kind::CloseParenthesis);
         break;
     
-    case Bang: 
+    case Bang:
         AddToken(Match(Equal) ? Token::Kind::NotEqual : Token::Kind::Not);
         break;
 
-    case Equal: 
+    case Equal:
         AddToken(Match(Equal) ? Token::Kind::Equal : Token::Kind::Assign); 
         break;
 
@@ -146,7 +146,7 @@ bool Lexer::Match(const char expected) {
     if (IsAtEnd()) {
         return false;
     }
-    if (m_text[m_position] == expected) {
+    if (m_text[m_position] != expected) {
         return false;
     }
     Next();
@@ -237,90 +237,90 @@ std::string Token::ToString(Kind kind)
     switch (kind)
     {
     case Token::Kind::TkEOF:
-        break;
+        return "TkEOF";
     case Token::Kind::Func:
-        break;
+        return "Func";
     case Token::Kind::Number:
-        break;
+        return "Number";
     case Token::Kind::Let:
-        break;
+        return "Let";
     case Token::Kind::Mut:
-        break;
+        return "Mut";
     case Token::Kind::Return:
-        break;
+        return "Return";
     case Token::Kind::Identifier:
-        break;
+        return "Identifier";
     case Token::Kind::True:
-        break;
+        return "True";
     case Token::Kind::False:
-        break;
+        return "False";
     case Token::Kind::Struct:
-        break;
+        return "Struct";
     case Token::Kind::Class:
-        break;
+        return "Class";
     case Token::Kind::While:
-        break;
+        return "While";
     case Token::Kind::For:
-        break;
+        return "For";
     case Token::Kind::If:
-        break;
+        return "If";
     case Token::Kind::Else:
-        break;
+        return "Else";
     case Token::Kind::Namespace:
-        break;
+        return "Namespace";
     case Token::Kind::Less:
-        break;
+        return "Less";
     case Token::Kind::LessEqual:
-        break;
+        return "LessEqual";
     case Token::Kind::Greater:
-        break;
+        return "Greater";
     case Token::Kind::GreaterEqual:
-        break;
+        return "GreaterEqual";
     case Token::Kind::Semicolon:
-        break;
+        return "Semicolon";
     case Token::Kind::Colon:
-        break;
+        return "Colon";
     case Token::Kind::Dot:
-        break;
+        return "Dot";
     case Token::Kind::Arrow:
-        break;
+        return "Arrow";
     case Token::Kind::OpenBracket:
-        break;
+        return "OpenBracket";
     case Token::Kind::CloseBracket:
-        break;
+        return "CloseBracket";
     case Token::Kind::OpenParenthesis:
-        break;
+        return "OpenParenthesis";
     case Token::Kind::CloseParenthesis:
-        break;
+        return "CloseParenthesis";
     case Token::Kind::BinaryAnd:
-        break;
+        return "BinaryAnd";
     case Token::Kind::LogicalAnd:
-        break;
+        return "LogicalAnd";
     case Token::Kind::BinaryOr:
-        break;
+        return "BinaryOr";
     case Token::Kind::LogicalOr:
-        break;
+        return "LogicalOr";
     case Token::Kind::Comma:
-        break;
+        return "Comma";
     case Token::Kind::Assign:
-        break;
+        return "Assign";
     case Token::Kind::Not:
-        break;
+        return "Not";
     case Token::Kind::NotEqual:
-        break;
+        return "NotEqual";
     case Token::Kind::Equal:
-        break;
+        return "Equal";
     case Token::Kind::Minus:
-        break;
+        return "Minus";
     case Token::Kind::Plus:
-        break;
+        return "Plus";
     case Token::Kind::Star:
-        break;
+        return "Star";
     case Token::Kind::Slash:
-        return "/";
+        return "Slash";
     case Token::Kind::String:
-        return "string";
+        return "String";
     default:
-        break;
+        return "undefined";
     }
 }

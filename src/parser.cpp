@@ -406,7 +406,7 @@ Ref<Token> Parser::Consume(Token::Kind kind, const std::string_view message) {
 	if (Check(kind)) {
 		return Advance();
 	}
-	throw Report(nullptr, std::string(message));
+	throw Report(Peek(), std::string(message));
 }
 
 bool Parser::Match(Token::Kind kind) {
@@ -452,7 +452,6 @@ std::exception Parser::Report(Ref<Token> tk, const std::string& msg) {
 }
 
 std::string Parser::Diagnostic(Ref<Token> tk, const std::string& msg) {
-	if (tk == nullptr) return "Error: " + msg;
 	if (tk->KindType == Token::Kind::TkEOF) return "Error: " + msg + " at end";
 	return "Error: To the line " + std::to_string(tk->Line + 1) + " for '" + tk->Text.c_str() + "' | " + msg;
 }
