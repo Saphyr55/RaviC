@@ -127,7 +127,7 @@ public:
 	static const char Equal = '=';
 	
 public:
-	std::vector<Ref<Token>> Scan();
+	std::vector<Ref<Token>>& Scan();
 	void NextToken();
 
 private:

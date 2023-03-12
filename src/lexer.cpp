@@ -11,7 +11,7 @@ Lexer::Lexer(const std::string_view text) :
     m_position(0) {
 }
 
-std::vector<RToken> Lexer::Scan() {
+std::vector<RToken>& Lexer::Scan() {
     
     while (!IsAtEnd()) {
         m_start = m_position;

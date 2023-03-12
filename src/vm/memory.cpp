@@ -8,6 +8,10 @@ namespace VM {
 		std::printf("%g", value);
 	}
 
+	void Memory::PrintlnValue(const Value& value) {
+		std::printf("%g\n", value);
+	}
+
 	void Memory::Write(const Value& value) {
 		m_values.push_back(value);
 	}

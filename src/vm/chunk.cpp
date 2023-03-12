@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "vm/chunk.hpp"
 #include "vm/memory.hpp"
+#include "vm/virtual_machine.hpp"
 
 namespace VM {
 
@@ -16,6 +17,11 @@ namespace VM {
 
 		std::printf("%04zu ", offset);
 
+		if (offset > 0 && m_lines[offset] == m_lines[offset - 1])
+			std::cout << "   | ";
+		else 
+			std::printf("%4d ", m_lines[offset]);
+
 		Byte instruction = m_bytes[offset];
 
 		switch (instruction) {
@@ -24,8 +30,18 @@ namespace VM {
 			return SimpleInstruction("Return", offset);
 		case OpCode::Constant:
 			return ConstantInstruction("Constant", offset);
+		case OpCode::Negate:
+			return SimpleInstruction("Negate", offset);
+		case OpCode::Add:
+			return  SimpleInstruction("Add", offset);
+		case OpCode::Substract:
+			return  SimpleInstruction("Substract", offset);
+		case OpCode::Multiply:
+			return  SimpleInstruction("Multiply", offset);
+		case OpCode::Divide:
+			return  SimpleInstruction("Divide", offset);
 		default:
-			printf("Unknown opcode %d\n", instruction);
+			std::cout << "Unknown opcode" << instruction << "\n";
 			return offset + 1;
 		}
 	}
@@ -46,6 +62,11 @@ namespace VM {
 	void Chunk::Write(const Byte& byte) {
 		m_bytes.push_back(byte);
 		m_lines.push_back(m_current_line);
+	}
+
+	void Chunk::WriteConstant(const Value& value) {
+		Write(OpCode::Constant);
+		Write(AddConstant(value));
 	}
 
 	std::size_t Chunk::AddConstant(const Value& value) {
