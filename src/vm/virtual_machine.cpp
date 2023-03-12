@@ -56,6 +56,10 @@ namespace VM {
 		return m_chunk.m_memory.GetHandle()[Read8()];
 	}
 
+	Chunk& RVM::CurrentChunk() {
+		return m_chunk;
+	}
+
 	InterpreteResult RVM::Run(std::string_view source) {
 		return Run();
 	}

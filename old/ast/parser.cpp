@@ -16,7 +16,6 @@ std::vector<AST::RStatement> Parser::Parse() {
 	return m_statements;
 }
 
-
 AST::RStatement Parser::CreateDeclaration() {
 
 	try {

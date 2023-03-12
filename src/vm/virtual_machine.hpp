@@ -2,7 +2,7 @@
 
 #include <stack>
 #include "vm/chunk.hpp"
-#include "common.hpp"
+#include "common/common.hpp"
 
 #define DEBUG_TRACE_EXECUTION
 
@@ -31,6 +31,7 @@ public:
 	InterpreteResult Run();
 	Byte Read8();
 	Value ReadConstant();
+	Chunk& CurrentChunk();
 
 public:
 	RVM(Chunk& c);

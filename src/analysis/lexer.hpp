@@ -5,7 +5,9 @@
 #include <vector>
 #include <unordered_map>
 
-#include "common.hpp"
+#include "common/common.hpp"
+
+namespace Analysis {
 
 class Token {
 
@@ -129,6 +131,8 @@ public:
 public:
 	std::vector<Ref<Token>>& Scan();
 	void NextToken();
+	Ref<Token> PeekToken();
+	Ref<Token> NextPeekToken();
 
 private:
 	void AddToken(Token::Kind kind, void* value = nullptr);
@@ -144,10 +148,12 @@ private:
 	std::size_t Next();
 	bool IsAtEnd();
 	void Report(std::string message);
+
 public:
 	Lexer(const std::string_view text);
-	Lexer(Lexer&) = delete;
-	Lexer(Lexer&&) = delete;
+	Lexer(const Lexer&) = default;
+	Lexer(Lexer&&) = default;
+	~Lexer() = default;
 
 private:
 	std::string m_text;
@@ -159,3 +165,4 @@ private:
 
 };
 
+}

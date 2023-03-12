@@ -3,8 +3,8 @@
 #include <vector>
 #include <set>
 #include <string>
-#include "common.hpp"
-#include "memory.hpp"
+#include "common/common.hpp"
+#include "vm/memory.hpp"
 
 namespace VM {
 
@@ -16,8 +16,10 @@ public:
 	std::size_t AddConstant(const Value& value);
 	std::size_t Disassemble(std::size_t offset);
 	void Disassemble(std::string_view name);
-	void Write(const Byte& byte);
+	void Write8(const Byte& byte);
+	void Write16(const Byte& byte1, const Byte& byte2);
 	void WriteConstant(const Value& value);
+	inline void SetLine(std::uint32_t line) { m_current_line = line; }
 
 public:
 	Chunk() = default;

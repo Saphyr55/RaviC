@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "common.hpp"
+#include "common/common.hpp"
 
 namespace VM {
 

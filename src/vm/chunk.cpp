@@ -59,14 +59,18 @@ namespace VM {
 		return offset + 2;
 	}
 
-	void Chunk::Write(const Byte& byte) {
+	void Chunk::Write8(const Byte& byte) {
 		m_bytes.push_back(byte);
 		m_lines.push_back(m_current_line);
 	}
 
+	void Chunk::Write16(const Byte& byte1, const Byte& byte2) {
+		Write8(byte1);
+		Write8(byte2);
+	}
+
 	void Chunk::WriteConstant(const Value& value) {
-		Write(OpCode::Constant);
-		Write(AddConstant(value));
+		Write16(OpCode::Constant, AddConstant(value));
 	}
 
 	std::size_t Chunk::AddConstant(const Value& value) {

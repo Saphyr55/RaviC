@@ -1,6 +1,5 @@
 #include <iostream>
 #include "lexer.hpp"
-#include "ast/parser.hpp"
 #include "vm/chunk.hpp"
 #include "vm/memory.hpp"
 #include "vm/virtual_machine.hpp"
@@ -21,16 +20,16 @@ int main(int argc, char** argv) {
 
 	VM::Chunk chunk;
 
-	chunk.Write(VM::OpCode::Constant); // -50
+	chunk.Write8(VM::OpCode::Constant); // -50
 	auto value = chunk.AddConstant(50);
-	chunk.Write(value);
-	chunk.Write(VM::OpCode::Negate); 
+	chunk.Write8(value);
+	chunk.Write8(VM::OpCode::Negate); 
 
 	chunk.WriteConstant(20); // 20
 
-	chunk.Write(VM::OpCode::Substract); // -50 - 20 
+	chunk.Write8(VM::OpCode::Substract); // - 50 - 20 
 
-	chunk.Write(VM::OpCode::Return);
+	chunk.Write8(VM::OpCode::Return);
 	
 	VM::RVM rvm(chunk);
 	rvm.Run(source);
