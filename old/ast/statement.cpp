@@ -1,13 +1,13 @@
-#include "ast/statement.hpp"
+#include "analysis/ast/statement.hpp"
 
 namespace AST {
 
 namespace Stmt {
 
 	Function::Function(
-		RToken name, RToken returnType, 
-		std::vector<RToken> paramsId, 
-		std::vector<RToken> paramsType, 
+		Analysis::RToken name, Analysis::RToken returnType,
+		std::vector<Analysis::RToken> paramsId,
+		std::vector<Analysis::RToken> paramsType,
 		std::vector<RStatement> block
 	) :
 		Name(name),
@@ -29,13 +29,13 @@ namespace Stmt {
 	If::If(Ref<::AST::Expression> condition, RStatement thenBranch, RStatement elseBranch) :
 		Condition(condition), ThenBranch(thenBranch), ElseBranch(elseBranch) {}
 
-	Let::Let(RToken name, RToken type, Ref<::AST::Expression> initializer, bool mutable_) :
+	Let::Let(Analysis::RToken name, Analysis::RToken type, Ref<::AST::Expression> initializer, bool mutable_) :
 		Name(name),
 		Type(type),
 		Initializer(initializer),
 		Mutable(mutable_) {}
 
-	Return::Return(RToken kw, ::AST::RExpression value) : 
+	Return::Return(Analysis::RToken kw, ::AST::RExpression value) :
 		Kw(kw), Value(value), FunctionStmt(nullptr) { }
 }
 

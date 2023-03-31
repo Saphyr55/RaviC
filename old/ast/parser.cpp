@@ -1,456 +1,479 @@
-#include "ast/parser.hpp"
+#include "analysis/ast/parser.hpp"
 #include <iostream>
 
-Parser::Parser(std::vector<Ref<Token>> tokens) : m_tokens(tokens){
-	
-}
+namespace AST {
 
-std::vector<AST::RStatement> Parser::Parse(const std::string_view text) {
-	Lexer lexer(text);
-	Parser parser(lexer.Scan());
-	return parser.Parse();
-}
+	Parser::Parser(std::vector<Ref<Analysis::Token>> tokens) 
+		: m_tokens(tokens) 
+	{ }
 
-std::vector<AST::RStatement> Parser::Parse() {
-	while (!IsAtEnd()) m_statements.push_back(CreateDeclaration());
-	return m_statements;
-}
-
-AST::RStatement Parser::CreateDeclaration() {
-
-	try {
-		if (Match(Token::Kind::Func)) return CreateFunction(false);
-		if (Match(Token::Kind::Let)) return CreateLetStatement();
-
-		return CreateStatement();
-	}
-	catch (const std::exception&) {
-		Synchronize();
-	}
-	return nullptr;
-}
-
-AST::RStatement Parser::CreateStatement()
-{
-	if (Match(Token::Kind::For)) return CreateForStatement();
-	if (Match(Token::Kind::While)) return CreateWhileStatement();
-	if (Match(Token::Kind::If)) return CreateIfStatement();
-	if (Match(Token::Kind::Return)) return CreateReturnStatement();
-	if (Match(Token::Kind::OpenBracket)) return std::make_shared<AST::Stmt::Block>(CreateBlock());
-	return CreateExpressionStatement();
-}
-
-AST::RStatement Parser::CreateStructStatement() {
-	return nullptr;
-}
-
-AST::RStatement Parser::CreateClassStatement() {
-	return nullptr;
-}
-
-Ref<AST::Stmt::Function> Parser::CreateFunction(bool isLambda) {
-
-	Ref<Token> name;
-	Ref<Token> returnType;
-	std::vector<RToken> parametersId;
-	std::vector<RToken> parametersType;
-	if (!isLambda) {
-		name = Consume(Token::Kind::Identifier, "Expected a function name.");
-	}
-	Consume(Token::Kind::OpenParenthesis, "Expect '(' after function name.");
-	if (!Check(Token::Kind::CloseParenthesis)) {
-		do {
-			if (parametersId.size() >= 255)
-				throw Report(Peek(), "Can't have more than 255 parameters.");
-			RToken id = Consume(Token::Kind::Identifier, "Expect parameter name.");
-			Consume(Token::Kind::Colon, "Expect ':' to precise the type.");
-			RToken type = Consume(Token::Kind::Identifier, "Expect a type for '" + std::string(id->Text.c_str()) + "'.");
-			parametersId.push_back(id);
-			parametersType.push_back(type);
-		} while (Match(Token::Kind::Comma));
-	}
-
-	Consume(Token::Kind::CloseParenthesis, "Expect ')' after parameters.");
-
-	if (Match(Token::Kind::Arrow))
-		returnType = Consume(Token::Kind::Identifier, "Expected a return type after '->'.");
-
-	Consume(Token::Kind::OpenBracket, "Expect '{' before function body.");
-
-	std::vector<AST::RStatement> body = CreateBlock();
-
-	return std::make_shared<AST::Stmt::Function>(name, returnType, parametersId, parametersType, body);
-}
-
-AST::RStatement Parser::CreateLetStatement() {
-
-	bool mutable_ = Match(Token::Kind::Mut);
-	RToken name = Consume(Token::Kind::Identifier, "Expect a name before let assignment.");
-	RToken type;
-	AST::RExpression initializer;
-	if (Match(Token::Kind::Colon)) {
-		type = Consume(Token::Kind::Identifier, "Expected declaring type after ':'.");
-	}
-	if (Match(Token::Kind::Assign)) {
-		initializer = CExpression();
-	}
-	Consume(Token::Kind::Semicolon, "Expect ';' after let declaration.");
-	return std::make_shared<AST::Stmt::Let>(name, type, initializer, mutable_);
-}
-
-AST::RStatement Parser::CreatePropertyDeclaration() {
-
-	return std::shared_ptr<AST::Statement>();
-}
-
-AST::RStatement Parser::CreateReturnStatement() {
-
-	RToken kw = Previous();
-	AST::RExpression value = Check(Token::Kind::Semicolon) ? nullptr : CExpression();
-	Consume(Token::Kind::Semicolon, "Expected ';' after return value.");
-	return std::make_shared<AST::Stmt::Return>(kw, value);
-}
-
-AST::RStatement Parser::CreateForStatement() {
-
-	Consume(Token::Kind::OpenParenthesis, "Expected '(' after 'for' loop");
-
-	AST::RStatement init;
-	if (Match(Token::Kind::Semicolon)) init = nullptr;
-	else if (Match(Token::Kind::Let)) init = CreateLetStatement();
-	else init = CreateExpressionStatement();
-
-	AST::RExpression condition = Check(Token::Kind::Semicolon) ? nullptr : CExpression();
-	Consume(Token::Kind::Semicolon, "Expected ';' after loop condition");
-
-	AST::RExpression increment = Check(Token::Kind::CloseParenthesis) ? nullptr : CExpression();
-	Consume(Token::Kind::CloseParenthesis, "Expected ')' to close for loop");
-
-	AST::RStatement body = CreateStatement();
-
-	if (increment != nullptr) {
-		std::vector<AST::RStatement> block;
-		block.push_back(body);
-		block.push_back(std::make_shared<AST::Stmt::Expression>(increment));
-		body = std::make_shared<AST::Stmt::Block>(block);
-	}
-
-	if (condition == nullptr)
-		condition = std::make_shared<AST::Expr::Literal>((void*)true);
-
-	body = std::make_shared<AST::Stmt::While>(condition, body);
-
-	if (init != nullptr) {
-		std::vector<AST::RStatement> block;
-		block.push_back(init);
-		block.push_back(body);
-		body = std::make_shared<AST::Stmt::Block>(block);
-	}
-
-	return body;
-}
-
-AST::RStatement Parser::CreateWhileStatement() {
-
-	Consume(Token::Kind::OpenParenthesis, "Expect '(' after 'while'.");
-	AST::RExpression condition = CExpression();
-	Consume(Token::Kind::CloseParenthesis, "Expect ')' after condition.");
-	return std::make_shared<AST::Stmt::While>(condition, CreateStatement());
-}
-
-AST::RStatement Parser::CreateIfStatement() {
-
-	Consume(Token::Kind::OpenParenthesis, "Expected '(' after if.");
-	AST::RExpression condition = CExpression();
-	Consume(Token::Kind::CloseParenthesis, "Expected ')' after if condition.");
-
-	AST::RStatement thenBranch = CreateStatement();
-	AST::RStatement elseBranch = Match(Token::Kind::Else) ? CreateStatement() : nullptr;
-
-	return std::make_shared<AST::Stmt::If>(condition, thenBranch, elseBranch);
-}
-
-std::vector<AST::RStatement> Parser::CreateBlock() {
-	std::vector<AST::RStatement> statements;
-	while (!Check(Token::Kind::CloseBracket) && !IsAtEnd()) {
-		statements.push_back(CreateDeclaration());
-	}
-	Consume(Token::Kind::CloseBracket, "Expect '}' after block.");
-	return statements;
-}
-
-std::vector<AST::RStatement> Parser::CreateStructInitializer() {
-
-	return std::vector<AST::RStatement>();
-}
-
-AST::RStatement Parser::CreateExpressionStatement() {
-
-	return std::make_shared<AST::Stmt::Expression>(ExpressionConsumeStatement());
-}
-
-AST::RExpression Parser::ExpressionConsumeStatement() {
-
-	AST::RExpression value = CExpression();
-	Consume(Token::Kind::Semicolon, "Expect ';' after value.");
-	return value;
-}
-
-AST::RExpression Parser::CExpression() {
-
-	return Assignement();
-}
-
-AST::RExpression Parser::Assignement() {
-
-	Ref<AST::Expression> expression = Or();
-
-	if (Match(Token::Kind::Assign)) {
-
-		RToken equals = Previous();
-
-		Ref<AST::Expression> value = Or();
-		if (Ref<AST::Expr::Let> let = std::dynamic_pointer_cast<AST::Expr::Let>(expression)) {
-			return std::make_shared<AST::Expr::Assign>(let->Name, value);
-		} else if (Ref<AST::Expr::Getter> get = std::dynamic_pointer_cast<AST::Expr::Getter>(expression)) {
-			return std::make_shared<AST::Expr::Setter>(get->Value, get->Name, value);
+	std::vector<RStatement> Parser::Parse(const std::string_view text) {
+		
+		Analysis::Lexer lexer(text);
+		
+		std::queue<Analysis::RToken> queue_tokens = lexer.Scan();
+		std::vector<Analysis::RToken> tokens;
+		for (int i = 0; !queue_tokens.empty(); i++) {
+			tokens.push_back(queue_tokens.front());
+			queue_tokens.pop();
 		}
 
-		throw Report(equals, "Invalid assignment target.");
+		Parser parser(tokens);
+
+		return parser.Parse();
 	}
 
-	return expression;
-}
+	std::vector<RStatement> Parser::Parse() {
 
-AST::RExpression Parser::Or() {
-
-	AST::RExpression expression = And();
-
-	while (Match(Token::Kind::LogicalOr)) {
-		RToken operator_ = Previous();
-		AST::RExpression right = And();
-		expression = std::make_shared<AST::Expr::Logical>(expression, operator_, right);
-	}
-	return expression;
-}
-
-AST::RExpression Parser::And() {
-
-	AST::RExpression expression = Equality();
-
-	while (Match(Token::Kind::LogicalAnd)) {
-		RToken operator_ = Previous();
-		AST::RExpression right = Equality();
-		expression = std::make_shared<AST::Expr::Logical>(expression, operator_, right);
-	}
-	return expression;
-}
-
-AST::RExpression Parser::Equality() {
-
-	AST::RExpression expression = Comparison();
-
-	while (Match(Token::Kind::NotEqual) || Match(Token::Kind::Equal)) {
-		RToken operator_ = Previous();
-		AST::RExpression right = Comparison();
-		expression = std::make_shared<AST::Expr::Binary>(expression, operator_, right);
+		while (!IsAtEnd()) m_statements.push_back(CreateDeclaration());
+		return m_statements;
 	}
 
-	return expression;
-}
+	RStatement Parser::CreateDeclaration() {
 
-AST::RExpression Parser::Comparison() {
+		try {
+			if (Match(Analysis::Token::Kind::Func)) return CreateFunction(false);
+			if (Match(Analysis::Token::Kind::Let)) return CreateLetStatement();
 
-	AST::RExpression expression = Term();
-
-	while (
-		Match(Token::Kind::Greater) || Match(Token::Kind::GreaterEqual) ||
-		Match(Token::Kind::Less)    || Match(Token::Kind::LessEqual)) {
-
-		RToken operator_ = Previous();
-		AST::RExpression right = Term();
-		expression = std::make_shared<AST::Expr::Binary>(expression, operator_, right);
-	}
-
-	return expression;
-}
-
-AST::RExpression Parser::Term() {
-
-	AST::RExpression expression = Factor();
-
-	while (Match(Token::Kind::Minus) || Match(Token::Kind::Plus)) {
-
-		RToken operator_ = Previous();
-		AST::RExpression right = Factor();
-		expression = std::make_shared<AST::Expr::Binary>(expression, operator_, right);
-	}
-
-	return expression;
-}
-
-AST::RExpression Parser::Factor() {
-
-	AST::RExpression expression = Unary();
-
-	while (Match(Token::Kind::Not) || Match(Token::Kind::Minus)) {
-
-		RToken operator_ = Previous();
-		AST::RExpression right = Unary();
-		expression = std::make_shared<AST::Expr::Binary>(expression, operator_, right);
-	}
-
-	return expression;
-}
-
-AST::RExpression Parser::Unary() {
-
-	if (Match(Token::Kind::Not) || Match(Token::Kind::Minus)) {
-		RToken operator_ = Previous();
-		AST::RExpression right = Unary();
-		return std::make_shared<AST::Expr::Unary>(right, operator_);
-	}
-	return Call();
-}
-
-AST::RExpression Parser::Call() {
-
-	AST::RExpression expression = Primary();
-	bool search = true;
-	while (search) {
-		if (Match(Token::Kind::OpenParenthesis)) {
-			expression = FinishCall(expression);
+			return CreateStatement();
 		}
-		else if (Match(Token::Kind::Dot)) {
-			RToken name = Consume(Token::Kind::Identifier, "Expect property name after '.'.");
-			expression = std::make_shared<AST::Expr::Getter>(expression, name);
+		catch (const std::exception&) {
+			Synchronize();
 		}
-		else search = false;
+		return nullptr;
 	}
-	return expression;
-}
 
-AST::RExpression Parser::FinishCall(Ref<AST::Expression> callee) {
+	RStatement Parser::CreateStatement()
+	{
+		if (Match(Analysis::Token::Kind::For)) return CreateForStatement();
+		if (Match(Analysis::Token::Kind::While)) return CreateWhileStatement();
+		if (Match(Analysis::Token::Kind::If)) return CreateIfStatement();
+		if (Match(Analysis::Token::Kind::Return)) return CreateReturnStatement();
+		if (Match(Analysis::Token::Kind::OpenBracket)) return std::make_shared<Stmt::Block>(CreateBlock());
+		return CreateExpressionStatement();
+	}
 
-	std::vector<AST::RExpression> arguments;
+	RStatement Parser::CreateStructStatement() {
+		return nullptr;
+	}
 
-	if (!Check(Token::Kind::CloseParenthesis)) {
-		do {
-			if (arguments.size() >= 255) {
-				throw Report(Peek(), "Can't have more than 255 arguments.");
+	RStatement Parser::CreateClassStatement() {
+		return nullptr;
+	}
+
+	Ref<Stmt::Function> Parser::CreateFunction(bool isLambda) {
+
+		Ref<Analysis::Token> name;
+		Ref<Analysis::Token> returnType;
+		std::vector<Analysis::RToken> parametersId;
+		std::vector<Analysis::RToken> parametersType;
+		if (!isLambda) {
+			name = Consume(Analysis::Token::Kind::Identifier, "Expected a function name.");
+		}
+		Consume(Analysis::Token::Kind::OpenParenthesis, "Expect '(' after function name.");
+		if (!Check(Analysis::Token::Kind::CloseParenthesis)) {
+			do {
+				if (parametersId.size() >= 255)
+					throw Report(Peek(), "Can't have more than 255 parameters.");
+				Analysis::RToken id = Consume(Analysis::Token::Kind::Identifier, "Expect parameter name.");
+				Consume(Analysis::Token::Kind::Colon, "Expect ':' to precise the type.");
+				Analysis::RToken type = Consume(Analysis::Token::Kind::Identifier, "Expect a type for '" + std::string(id->Text.c_str()) + "'.");
+				parametersId.push_back(id);
+				parametersType.push_back(type);
+			} while (Match(Analysis::Token::Kind::Comma));
+		}
+
+		Consume(Analysis::Token::Kind::CloseParenthesis, "Expect ')' after parameters.");
+
+		if (Match(Analysis::Token::Kind::Arrow))
+			returnType = Consume(Analysis::Token::Kind::Identifier, "Expected a return type after '->'.");
+
+		Consume(Analysis::Token::Kind::OpenBracket, "Expect '{' before function body.");
+
+		std::vector<RStatement> body = CreateBlock();
+
+		return std::make_shared<Stmt::Function>(name, returnType, parametersId, parametersType, body);
+	}
+
+	RStatement Parser::CreateLetStatement() {
+
+		bool mutable_ = Match(Analysis::Token::Kind::Mut);
+		Analysis::RToken name = Consume(Analysis::Token::Kind::Identifier, "Expect a name before let assignment.");
+		Analysis::RToken type;
+		RExpression initializer;
+		if (Match(Analysis::Token::Kind::Colon)) {
+			type = Consume(Analysis::Token::Kind::Identifier, "Expected declaring type after ':'.");
+		}
+		if (Match(Analysis::Token::Kind::Assign)) {
+			initializer = CExpression();
+		}
+		Consume(Analysis::Token::Kind::Semicolon, "Expect ';' after let declaration.");
+		return std::make_shared<Stmt::Let>(name, type, initializer, mutable_);
+	}
+
+	RStatement Parser::CreatePropertyDeclaration() {
+
+		return std::shared_ptr<Statement>();
+	}
+
+	RStatement Parser::CreateReturnStatement() {
+
+		Analysis::RToken kw = Previous();
+		RExpression value = Check(Analysis::Token::Kind::Semicolon) ? nullptr : CExpression();
+		Consume(Analysis::Token::Kind::Semicolon, "Expected ';' after return value.");
+		return std::make_shared<Stmt::Return>(kw, value);
+	}
+
+	RStatement Parser::CreateForStatement() {
+
+		Consume(Analysis::Token::Kind::OpenParenthesis, "Expected '(' after 'for' loop");
+
+		RStatement init;
+		if (Match(Analysis::Token::Kind::Semicolon)) init = nullptr;
+		else if (Match(Analysis::Token::Kind::Let)) init = CreateLetStatement();
+		else init = CreateExpressionStatement();
+
+		RExpression condition = Check(Analysis::Token::Kind::Semicolon) ? nullptr : CExpression();
+		Consume(Analysis::Token::Kind::Semicolon, "Expected ';' after loop condition");
+
+		RExpression increment = Check(Analysis::Token::Kind::CloseParenthesis) ? nullptr : CExpression();
+		Consume(Analysis::Token::Kind::CloseParenthesis, "Expected ')' to close for loop");
+
+		RStatement body = CreateStatement();
+
+		if (increment != nullptr) {
+			std::vector<RStatement> block;
+			block.push_back(body);
+			block.push_back(std::make_shared<Stmt::Expression>(increment));
+			body = std::make_shared<Stmt::Block>(block);
+		}
+
+		if (condition == nullptr)
+			condition = std::make_shared<Expr::Literal>((void*)true);
+
+		body = std::make_shared<Stmt::While>(condition, body);
+
+		if (init != nullptr) {
+			std::vector<RStatement> block;
+			block.push_back(init);
+			block.push_back(body);
+			body = std::make_shared<Stmt::Block>(block);
+		}
+
+		return body;
+	}
+
+	RStatement Parser::CreateWhileStatement() {
+
+		Consume(Analysis::Token::Kind::OpenParenthesis, "Expect '(' after 'while'.");
+		RExpression condition = CExpression();
+		Consume(Analysis::Token::Kind::CloseParenthesis, "Expect ')' after condition.");
+		return std::make_shared<Stmt::While>(condition, CreateStatement());
+	}
+
+	RStatement Parser::CreateIfStatement() {
+
+		Consume(Analysis::Token::Kind::OpenParenthesis, "Expected '(' after if.");
+		RExpression condition = CExpression();
+		Consume(Analysis::Token::Kind::CloseParenthesis, "Expected ')' after if condition.");
+
+		RStatement thenBranch = CreateStatement();
+		RStatement elseBranch = Match(Analysis::Token::Kind::Else) ? CreateStatement() : nullptr;
+
+		return std::make_shared<Stmt::If>(condition, thenBranch, elseBranch);
+	}
+
+	std::vector<RStatement> Parser::CreateBlock() {
+		std::vector<RStatement> statements;
+		while (!Check(Analysis::Token::Kind::CloseBracket) && !IsAtEnd()) {
+			statements.push_back(CreateDeclaration());
+		}
+		Consume(Analysis::Token::Kind::CloseBracket, "Expect '}' after block.");
+		return statements;
+	}
+
+	std::vector<RStatement> Parser::CreateStructInitializer() {
+
+		return std::vector<RStatement>();
+	}
+
+	RStatement Parser::CreateExpressionStatement() {
+
+		return std::make_shared<Stmt::Expression>(ExpressionConsumeStatement());
+	}
+
+	RExpression Parser::ExpressionConsumeStatement() {
+
+		RExpression value = CExpression();
+		Consume(Analysis::Token::Kind::Semicolon, "Expect ';' after value.");
+		return value;
+	}
+
+	RExpression Parser::CExpression() {
+
+		return Assignement();
+	}
+
+	RExpression Parser::Assignement() {
+
+		Ref<Expression> expression = Or();
+
+		if (Match(Analysis::Token::Kind::Assign)) {
+
+			Analysis::RToken equals = Previous();
+
+			Ref<Expression> value = Or();
+			if (Ref<Expr::Let> let = std::dynamic_pointer_cast<Expr::Let>(expression)) {
+				return std::make_shared<Expr::Assign>(let->Name, value);
 			}
-			arguments.push_back(CExpression());
-		} while (Match(Token::Kind::Comma));
-	}
+			else if (Ref<Expr::Getter> get = std::dynamic_pointer_cast<Expr::Getter>(expression)) {
+				return std::make_shared<Expr::Setter>(get->Value, get->Name, value);
+			}
 
-	RToken paren = Consume(Token::Kind::CloseParenthesis, "Expect ')' after arguments.");
-
-	return std::make_shared<AST::Expr::Call>(callee, arguments);
-}
-
-AST::RExpression Parser::Primary() {
-
-	if (Match(Token::Kind::False)) return std::make_shared<AST::Expr::Literal>((void*)false);
-	if (Match(Token::Kind::True)) return std::make_shared<AST::Expr::Literal>((void*)true);
-	// if (Match(Token::Kind::Null)) return std::make_shared<AST::Expr::Literal>(nullptr);
-	if (Match(Token::Kind::Number)) return std::make_shared<AST::Expr::Literal>(Previous()->Data);
-	if (Match(Token::Kind::String)) return std::make_shared<AST::Expr::Literal>(Previous()->Data);
-	if (Match(Token::Kind::Identifier)) return std::make_shared<AST::Expr::Let>(Previous());
-	// if (Match(Token::Kind::ThisKw)) return std::make_shared<AST::Expr::This>(previous());
-	if (Match(Token::Kind::Func)) return std::make_shared<AST::Expr::Lambda>(CreateFunction(true));
-	if (Match(Token::Kind::OpenParenthesis)) {
-		AST::RExpression expr = CExpression();
-		Consume(Token::Kind::CloseParenthesis, "Expect ')' after expression.");
-		return std::make_shared<AST::Expr::Grouping>(expr);
-	}
-	throw Report(Peek(), "Expect expression.");
-}
-
-void Parser::Synchronize() {
-	Advance();
-	while (!IsAtEnd()) {
-		if (Previous()->KindType == Token::Kind::Semicolon) {
-			return;
+			throw Report(equals, "Invalid assignment target.");
 		}
-		switch (Peek()->KindType)
-		{
-//		case Token::Kind::Class:
-//			return;
-		case Token::Kind::Func:
-			return;
-		case Token::Kind::Let:
-			return;
-		case Token::Kind::For:
-			return;
-//		case Token::Kind::Namespace:
-//			return;
-		case Token::Kind::If:
-			return;
-		case Token::Kind::Mut:
-			return;
-//		case Token::Kind::Struct:
-//			return;
-		case Token::Kind::Return:
-			return;
-		case Token::Kind::While:
-			return;
-		default:
-			break;
+
+		return expression;
+	}
+
+	RExpression Parser::Or() {
+
+		RExpression expression = And();
+
+		while (Match(Analysis::Token::Kind::LogicalOr)) {
+			Analysis::RToken operator_ = Previous();
+			RExpression right = And();
+			expression = std::make_shared<Expr::Logical>(expression, operator_, right);
 		}
+		return expression;
+	}
+
+	RExpression Parser::And() {
+
+		RExpression expression = Equality();
+
+		while (Match(Analysis::Token::Kind::LogicalAnd)) {
+			Analysis::RToken operator_ = Previous();
+			RExpression right = Equality();
+			expression = std::make_shared<Expr::Logical>(expression, operator_, right);
+		}
+		return expression;
+	}
+
+	RExpression Parser::Equality() {
+
+		RExpression expression = Comparison();
+
+		while (Match(Analysis::Token::Kind::NotEqual) || Match(Analysis::Token::Kind::Equal)) {
+			Analysis::RToken operator_ = Previous();
+			RExpression right = Comparison();
+			expression = std::make_shared<Expr::Binary>(expression, operator_, right);
+		}
+
+		return expression;
+	}
+
+	RExpression Parser::Comparison() {
+
+		RExpression expression = Term();
+
+		while (
+			Match(Analysis::Token::Kind::Greater) || Match(Analysis::Token::Kind::GreaterEqual) ||
+			Match(Analysis::Token::Kind::Less) || Match(Analysis::Token::Kind::LessEqual)) {
+
+			Analysis::RToken operator_ = Previous();
+			RExpression right = Term();
+			expression = std::make_shared<Expr::Binary>(expression, operator_, right);
+		}
+
+		return expression;
+	}
+
+	RExpression Parser::Term() {
+
+		RExpression expression = Factor();
+
+		while (Match(Analysis::Token::Kind::Minus) || Match(Analysis::Token::Kind::Plus)) {
+
+			Analysis::RToken operator_ = Previous();
+			RExpression right = Factor();
+			expression = std::make_shared<Expr::Binary>(expression, operator_, right);
+		}
+
+		return expression;
+	}
+
+	RExpression Parser::Factor() {
+
+		RExpression expression = Unary();
+
+		while (Match(Analysis::Token::Kind::Not) || Match(Analysis::Token::Kind::Minus)) {
+
+			Analysis::RToken operator_ = Previous();
+			RExpression right = Unary();
+			expression = std::make_shared<Expr::Binary>(expression, operator_, right);
+		}
+
+		return expression;
+	}
+
+	RExpression Parser::Unary() {
+
+		if (Match(Analysis::Token::Kind::Not) || Match(Analysis::Token::Kind::Minus)) {
+
+			Analysis::RToken operator_ = Previous();
+			RExpression right = Unary();
+			return std::make_shared<Expr::Unary>(right, operator_);
+		}
+		return Call();
+	}
+
+	RExpression Parser::Call() {
+
+		RExpression expression = Primary();
+		bool search = true;
+
+		while (search) {
+		
+			if (Match(Analysis::Token::Kind::OpenParenthesis)) {
+				
+				expression = FinishCall(expression);
+
+			} else if (Match(Analysis::Token::Kind::Dot)) {
+				
+				Analysis::RToken name = Consume(Analysis::Token::Kind::Identifier, "Expect property name after '.'.");
+				expression = std::make_shared<Expr::Getter>(expression, name);
+			
+			} else search = false;
+		}
+		return expression;
+	}
+
+	RExpression Parser::FinishCall(Ref<Expression> callee) {
+
+		std::vector<RExpression> arguments;
+
+		if (!Check(Analysis::Token::Kind::CloseParenthesis)) {
+			do {
+				if (arguments.size() >= 255) {
+					throw Report(Peek(), "Can't have more than 255 arguments.");
+				}
+				arguments.push_back(CExpression());
+			} while (Match(Analysis::Token::Kind::Comma));
+		}
+
+		Analysis::RToken paren = Consume(Analysis::Token::Kind::CloseParenthesis, "Expect ')' after arguments.");
+
+		return std::make_shared<Expr::Call>(callee, arguments);
+	}
+
+	RExpression Parser::Primary() {
+
+		if (Match(Analysis::Token::Kind::False)) return std::make_shared<Expr::Literal>((void*)false);
+		if (Match(Analysis::Token::Kind::True)) return std::make_shared<Expr::Literal>((void*)true);
+		// if (Match(Analysis::Token::Kind::Null)) return std::make_shared<Expr::Literal>(nullptr);
+		if (Match(Analysis::Token::Kind::Number)) return std::make_shared<Expr::Literal>(Previous()->Data);
+		if (Match(Analysis::Token::Kind::String)) return std::make_shared<Expr::Literal>(Previous()->Data);
+		if (Match(Analysis::Token::Kind::Identifier)) return std::make_shared<Expr::Let>(Previous());
+		// if (Match(Analysis::Token::Kind::ThisKw)) return std::make_shared<Expr::This>(previous());
+		if (Match(Analysis::Token::Kind::Func)) return std::make_shared<Expr::Lambda>(CreateFunction(true));
+		if (Match(Analysis::Token::Kind::OpenParenthesis)) {
+			RExpression expr = CExpression();
+			Consume(Analysis::Token::Kind::CloseParenthesis, "Expect ')' after expression.");
+			return std::make_shared<Expr::Grouping>(expr);
+		}
+		throw Report(Peek(), "Expect expression.");
+	}
+
+	void Parser::Synchronize() {
 		Advance();
+		while (!IsAtEnd()) {
+			if (Previous()->KindType == Analysis::Token::Kind::Semicolon) {
+				return;
+			}
+			switch (Peek()->KindType)
+			{
+				//		case Analysis::Token::Kind::Class:
+				//			return;
+			case Analysis::Token::Kind::Func:
+				return;
+			case Analysis::Token::Kind::Let:
+				return;
+			case Analysis::Token::Kind::For:
+				return;
+				//		case Analysis::Token::Kind::Namespace:
+				//			return;
+			case Analysis::Token::Kind::If:
+				return;
+			case Analysis::Token::Kind::Mut:
+				return;
+				//		case Analysis::Token::Kind::Struct:
+				//			return;
+			case Analysis::Token::Kind::Return:
+				return;
+			case Analysis::Token::Kind::While:
+				return;
+			default:
+				break;
+			}
+			Advance();
+		}
 	}
-}
 
-Ref<Token> Parser::Consume(Token::Kind kind, const std::string_view message) {
-	if (Check(kind)) {
-		return Advance();
+	Ref<Analysis::Token> Parser::Consume(Analysis::Token::Kind kind, const std::string_view message) {
+		if (Check(kind)) {
+			return Advance();
+		}
+		throw Report(Peek(), std::string(message));
 	}
-	throw Report(Peek(), std::string(message));
-}
 
-bool Parser::Match(Token::Kind kind) {
-	if (Check(kind)) {
-		Advance();
-		return true;
+	bool Parser::Match(Analysis::Token::Kind kind) {
+		if (Check(kind)) {
+			Advance();
+			return true;
+		}
+		return false;
 	}
-	return false;
-}
 
 
-bool Parser::Check(Token::Kind kind) {
-	if (IsAtEnd()) return false;
-	return Peek()->KindType == kind;
-}
-
-Ref<Token> Parser::Advance() {
-	if (!IsAtEnd()) {
-		m_current++;
+	bool Parser::Check(Analysis::Token::Kind kind) {
+		if (IsAtEnd()) return false;
+		return Peek()->KindType == kind;
 	}
-	return Previous();
+
+	Ref<Analysis::Token> Parser::Advance() {
+		if (!IsAtEnd()) {
+			m_current++;
+		}
+		return Previous();
+	}
+
+	Ref<Analysis::Token> Parser::Peek() {
+		return m_tokens[m_current];
+	}
+
+	bool Parser::IsAtEnd() {
+		return Peek()->KindType == Analysis::Token::Kind::TkEOF;
+	}
+
+	Ref<Analysis::Token> Parser::Previous() {
+		return Previous(1);
+	}
+
+	Ref<Analysis::Token> Parser::Previous(const std::int32_t offset) {
+		return m_tokens.at(m_current - offset);
+	}
+
+	std::exception Parser::Report(Ref<Analysis::Token> tk, const std::string& msg) {
+		std::cerr << Diagnostic(tk, msg) << "\n";
+		return std::exception();
+	}
+
+	std::string Parser::Diagnostic(Ref<Analysis::Token> tk, const std::string& msg) {
+		if (tk->KindType == Analysis::Token::Kind::TkEOF) return "Error: " + msg + " at end";
+		return "Error: To the line " + std::to_string(tk->Line + 1) + " for '" + tk->Text.c_str() + "' | " + msg;
+	}
+
 }
 
-Ref<Token> Parser::Peek() {
-	return m_tokens[m_current];
-}
 
-bool Parser::IsAtEnd() {
-	return Peek()->KindType == Token::Kind::TkEOF;
-}
-
-Ref<Token> Parser::Previous() {
-	return Previous(1);
-}
-
-Ref<Token> Parser::Previous(const std::int32_t offset) {
-	return m_tokens.at(m_current - offset);
-}
-
-std::exception Parser::Report(Ref<Token> tk, const std::string& msg) {
-	std::cerr << Diagnostic(tk, msg) << "\n";
-	return std::exception();
-}
-
-std::string Parser::Diagnostic(Ref<Token> tk, const std::string& msg) {
-	if (tk->KindType == Token::Kind::TkEOF) return "Error: " + msg + " at end";
-	return "Error: To the line " + std::to_string(tk->Line + 1) + " for '" + tk->Text.c_str() + "' | " + msg;
-}

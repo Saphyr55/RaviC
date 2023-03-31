@@ -4,8 +4,8 @@
 #define RAVI_STATEMENT_H
 
 #include <vector>
-#include "lexer.hpp"
-#include "ast/expression.hpp"
+#include "analysis/lexer.hpp"
+#include "analysis/ast/expression.hpp"
 
 namespace AST {
 
@@ -21,16 +21,16 @@ namespace Stmt {
 class Function : public Statement {
 public:
 	Function(
-		RToken name,
-		RToken returnType,
-		std::vector<RToken> paramsId,
-		std::vector<RToken> paramsType,
+		Analysis::RToken name,
+		Analysis::RToken returnType,
+		std::vector<Analysis::RToken> paramsId,
+		std::vector<Analysis::RToken> paramsType,
 		std::vector<RStatement> block
 	);
-	RToken Name;
-	RToken ReturnType;
-	std::vector<RToken> ParamsId;
-	std::vector<RToken> ParamsType;
+	Analysis::RToken Name;
+	Analysis::RToken ReturnType;
+	std::vector<Analysis::RToken> ParamsId;
+	std::vector<Analysis::RToken> ParamsType;
 	std::vector<RStatement> block;
 };
 
@@ -57,21 +57,21 @@ public:
 class Let : public Statement {
 public:
 	Let(
-		RToken name,
-		RToken type,
+		Analysis::RToken name,
+		Analysis::RToken type,
 		Ref<::AST::Expression> initializer,
 		bool mutable_
 	);
-	Ref<Token> Name;
-	Ref<Token> Type;
+	Ref<Analysis::Token> Name;
+	Ref<Analysis::Token> Type;
 	Ref<::AST::Expression> Initializer;
 	bool Mutable;
 };
 
 class Return : public Statement {
 public:
-	Return(RToken kw, ::AST::RExpression value);
-	RToken Kw;
+	Return(Analysis::RToken kw, ::AST::RExpression value);
+	Analysis::RToken Kw;
 	::AST::RExpression Value;
 	Ref<Function> FunctionStmt;
 };

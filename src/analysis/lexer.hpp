@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include <deque>
 
 #include "common/common.hpp"
 
@@ -129,10 +130,13 @@ public:
 	static const char Equal = '=';
 	
 public:
-	std::vector<Ref<Token>>& Scan();
+	std::deque<Ref<Token>>& Scan();
+	std::deque<Ref<Token>>& GetDeque();
 	void NextToken();
+	Ref<Token> GetCurrentTk();
 	Ref<Token> PeekToken();
-	Ref<Token> NextPeekToken();
+	Ref<Token> PollToken();
+	bool IsAtEnd();
 
 private:
 	void AddToken(Token::Kind kind, void* value = nullptr);
@@ -146,7 +150,6 @@ private:
 	char PeekNext();
 	char Advance();
 	std::size_t Next();
-	bool IsAtEnd();
 	void Report(std::string message);
 
 public:
@@ -155,13 +158,14 @@ public:
 	Lexer(Lexer&&) = default;
 	~Lexer() = default;
 
-private:
-	std::string m_text;
 	std::size_t m_position;
 	std::size_t m_start;
+private:
+	std::string m_text;
 	std::size_t m_line;
 	std::size_t m_col;
-	std::vector<Ref<Token>> m_tokens;
+	Ref<Token> m_current_token;
+	std::deque<Ref<Token>> m_tokens;
 
 };
 

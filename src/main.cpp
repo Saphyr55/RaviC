@@ -1,5 +1,5 @@
 #include <iostream>
-#include "lexer.hpp"
+#include "analysis/lexer.hpp"
 #include "vm/chunk.hpp"
 #include "vm/memory.hpp"
 #include "vm/virtual_machine.hpp"
@@ -8,31 +8,31 @@ std::string source = "func main () { let mut m : i32 = 3 if (1 != 0) return 0; }
 
 int main(int argc, char** argv) {
 	/*
-	Lexer lexer();
-	std::vector<Ref<Token>> tokens = lexer.Scan();
-
-	for (auto& t : tokens) {
-		std::cout << t->Text << " " << Token::ToString(t->KindType) << "\n";
-	}
-	 
-	Parser p(tokens);
-	p.Parse();*/
-
-	VM::Chunk chunk;
-
-	chunk.Write8(VM::OpCode::Constant); // -50
-	auto value = chunk.AddConstant(50);
-	chunk.Write8(value);
-	chunk.Write8(VM::OpCode::Negate); 
-
-	chunk.WriteConstant(20); // 20
-
-	chunk.Write8(VM::OpCode::Substract); // - 50 - 20 
-
-	chunk.Write8(VM::OpCode::Return);
+	Analysis::Lexer lexer(source);
 	
-	VM::RVM rvm(chunk);
-	rvm.Run(source);
+	while (!lexer.IsAtEnd()) {
+
+		auto& t = *lexer.PeekToken();
+		std::cout << t.Text << " " << Analysis::Token::ToString(t.KindType) << "\n";
+	
+	}
+	*/
+	/*
+	VM::Chunk chunk;
+	
+	chunk.WriteConstant(50); // - 50
+	chunk.Write8(VM::OpCode::Negate);
+	chunk.WriteConstant(20); // 20
+	chunk.Write8(VM::OpCode::Substract); // - 50 - 20
+	chunk.WriteConstant(20);
+	chunk.Write8(VM::OpCode::Add);
+	chunk.Write8(VM::OpCode::End);
+	
+	VM::RVM vm(chunk);
+	vm.Run();
+	*/
+	VM::RVM rvm;
+	rvm.Run("2 + 1;");
 	
     return 0;
 }

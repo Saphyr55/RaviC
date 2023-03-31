@@ -13,7 +13,7 @@ namespace Analysis {
         m_line(0),
         m_position(0) { }
 
-    std::vector<RToken>& Lexer::Scan() {
+    std::deque<RToken>& Lexer::Scan() {
         
         while (!IsAtEnd()) {
             m_start = m_position;
@@ -29,6 +29,12 @@ namespace Analysis {
                 m_col
             )
         );
+
+        return m_tokens;
+    }
+
+    std::deque<Ref<Token>>& Lexer::GetDeque() {
+    
         return m_tokens;
     }
 
@@ -113,22 +119,38 @@ namespace Analysis {
     }
 
     Ref<Token> Lexer::PeekToken() {
+
+        m_start = m_position;
+        NextToken();
+        
+        if (m_tokens.empty())
+        {
+            return std::make_shared<Token>(
+                Token::Kind::TkEOF, nullptr,
+                "\0", m_line, m_col
+            );
+        }
+
         return m_tokens.back();
     }
 
-    Ref<Token> Lexer::NextPeekToken() {
-        NextToken();
-        return PeekToken();
+    Ref<Token> Lexer::PollToken() {
+        Ref<Token> tk = PeekToken();
+        m_tokens.pop_back();
+        return tk;
     }
 
     void Lexer::AddToken(Token::Kind kind, void* value) {
-        m_tokens.push_back(std::make_shared<Token>(
-            kind,
-            value,
+        m_current_token = std::make_shared<Token>(
+            kind, value,
             m_text.substr(m_start, m_position - m_start),
-            m_line,
-            m_col
-        ));
+            m_line, m_col
+        );
+		m_tokens.push_back(m_current_token);
+    }
+
+    Ref<Token> Lexer::GetCurrentTk() {
+        return m_current_token;
     }
 
     bool Lexer::Match(const char expected) {
@@ -152,7 +174,7 @@ namespace Analysis {
     void Lexer::AddDefaultToken(const char c) {
         if (std::isdigit(c)) AddNumberToken();
         else if (std::isalpha(c)) AddIdentifierToken();
-        else Report("Unexpected character.");
+        else Report("Unexpected character");
     }
 
     void Lexer::AddNumberToken() {
@@ -181,7 +203,7 @@ namespace Analysis {
             Advance();
         }
         if (IsAtEnd()) {
-            Report("Unterminated string.");
+            Report("Unterminated string");
             return;
         }
         Next();
@@ -218,7 +240,7 @@ namespace Analysis {
     }
 
     void Lexer::Report(std::string message) {
-        std::cerr << "Error:" << message << " at [" << (m_line + 1) << "," << (m_col + 1) << "].\n";
+        std::cerr << "Error: " << message << " at [" << (m_line + 1) << "," << (m_col + 1) << "].\n";
     }
 
     std::string Token::ToString(Kind kind)

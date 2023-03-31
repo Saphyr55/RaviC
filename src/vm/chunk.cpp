@@ -1,5 +1,7 @@
 #include <iostream>
 #include <cstdio>
+#include <bitset>
+#include <cmath>
 #include "vm/chunk.hpp"
 #include "vm/memory.hpp"
 #include "vm/virtual_machine.hpp"
@@ -26,10 +28,12 @@ namespace VM {
 
 		switch (instruction) {
 
-		case OpCode::Return :
+		case OpCode::End :
 			return SimpleInstruction("Return", offset);
 		case OpCode::Constant:
 			return ConstantInstruction("Constant", offset);
+		case OpCode::Constant_Long:
+			return ConstantInstructionLong("Constant Long", offset);
 		case OpCode::Negate:
 			return SimpleInstruction("Negate", offset);
 		case OpCode::Add:
@@ -52,11 +56,23 @@ namespace VM {
 	}
 
 	std::size_t Chunk::ConstantInstruction(std::string_view name, std::size_t offset) {
+
 		Byte constant = m_bytes[offset + 1];
 		std::printf("%-16s %4d '", name.data(), constant);
 		Memory::PrintValue(m_memory.GetHandle()[constant]);
 		std::printf("'\n");
 		return offset + 2;
+	}
+
+	std::size_t Chunk::ConstantInstructionLong(std::string_view name, std::size_t offset) {
+
+		Byte bytes[] = { m_bytes[offset + 1],  m_bytes[offset + 2] };
+		std::size_t addr;
+		std::memcpy(&addr, bytes, sizeof(std::size_t));
+		std::printf("%-16s %4zu '", name.data(), addr);
+		Memory::PrintValue(m_memory.GetHandle()[addr]);
+		std::printf("'\n");
+		return offset + 3;
 	}
 
 	void Chunk::Write8(const Byte& byte) {
@@ -69,6 +85,18 @@ namespace VM {
 		Write8(byte2);
 	}
 
+	void Chunk::WriteConstantLong(const Value& value) {
+		
+		std::size_t addr = AddConstant(value);
+		
+		Byte bytes[2];
+		bytes[0] = (addr >> 8) & 0xFF;
+		bytes[1] = (addr >> 0) & 0xFF;
+		
+		Write8(OpCode::Constant_Long);
+		Write16(bytes[0], bytes[1]);
+	}
+
 	void Chunk::WriteConstant(const Value& value) {
 		Write16(OpCode::Constant, AddConstant(value));
 	}
@@ -77,5 +105,6 @@ namespace VM {
 		m_memory.Write(value);
 		return m_memory.Size() - 1;
 	}
+
 
 }

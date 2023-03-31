@@ -1,5 +1,8 @@
 #pragma once
 
+#include <unordered_map>
+#include <functional>
+
 #include "common/common.hpp"
 #include "analysis/lexer.hpp"
 #include "vm/chunk.hpp"
@@ -8,7 +11,8 @@ namespace Analysis {
 
 class Parser {
 
-enum Precedence{
+public:
+enum Precedence : std::uint8_t {
 	NONE,
 	ASSIGNMENT,
 	OR,
@@ -21,13 +25,16 @@ enum Precedence{
 	CALL,
 	PRIMARY
 };
+public:
+	void Expression();
 
 private:
-    void Expression();
     void Number();
     void Grouping();
+    void Binary();
     void Unary();
     void ParsePrecedence(Precedence pre);
+
 private:
 	bool IsAtEnd();
 	bool Check(Token::Kind kind);
@@ -50,6 +57,31 @@ private:
     Ref<Token> m_current;
     Ref<Token> m_previous;
 	VM::Chunk& current_chunk;
+
+private:
+
+class Rule {
+
+public:
+	static Rule Get(Token::Kind type);
+	std::function<void(Parser&)> prefix;
+	std::function<void(Parser&)> infix;
+	Parser::Precedence precedence;
+
+public:
+	Rule(std::function<void(Parser&)> prefix, std::function<void(Parser&)> infix, Parser::Precedence precedence);
+	Rule() = default;
+	Rule(const Rule&) = default;
+	Rule(Rule&&) = default;
+	~Rule() = default;
+
+
+private:
+	static std::unordered_map<Token::Kind, Rule> rules;
+
 };
-    
+
+
+};
+
 }

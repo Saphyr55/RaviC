@@ -1,59 +1,68 @@
 #pragma once
 
 #include <vector>
-#include "lexer.hpp"
-#include "ast/statement.hpp"
-#include "ast/expression.hpp"
+#include "analysis/lexer.hpp"
+#include "analysis/ast/statement.hpp"
+#include "analysis/ast/expression.hpp"
+
+namespace AST {
 
 class Parser {
-	
+
 public:
-	Parser(std::vector<Ref<Token>> tokens);
-	static std::vector<AST::RStatement> Parse(const std::string_view text);
-	std::vector<AST::RStatement> Parse();
+	Parser(std::vector<Ref<Analysis::Token>> tokens);
+	static std::vector<RStatement> Parse(const std::string_view text);
+	std::vector<RStatement> Parse();
 
 private:
-	Ref<AST::Statement> CreateDeclaration();
-	Ref<AST::Statement> CreateStructStatement();
-	Ref<AST::Statement> CreateClassStatement();
-	Ref<AST::Stmt::Function> CreateFunction(bool isLambda);
-	Ref<AST::Statement> CreateLetStatement();
-	Ref<AST::Statement> CreatePropertyDeclaration();
-	Ref<AST::Statement> CreateReturnStatement();
-	Ref<AST::Statement> CreateForStatement();
-	Ref<AST::Statement> CreateWhileStatement();
-	Ref<AST::Statement> CreateIfStatement();
-	Ref<AST::Statement> CreateStatement();
-	std::vector<AST::RStatement> CreateBlock();
-	std::vector<AST::RStatement> CreateStructInitializer();
-	Ref<AST::Statement> CreateExpressionStatement();
-	Ref<AST::Expression> ExpressionConsumeStatement();
-	Ref<AST::Expression> CExpression();
-	Ref<AST::Expression> Assignement();
-	Ref<AST::Expression> Or();
-	Ref<AST::Expression> And();
-	Ref<AST::Expression> Equality();
-	Ref<AST::Expression> Comparison();
-	Ref<AST::Expression> Term();
-	Ref<AST::Expression> Factor();
-	Ref<AST::Expression> Unary();
-	Ref<AST::Expression> Call();
-	Ref<AST::Expression> FinishCall(Ref<AST::Expression> callee);
-	Ref<AST::Expression> Primary();
-	void Synchronize();
-	Ref<Token> Consume(Token::Kind kind, const std::string_view message);
-	bool Match(Token::Kind kind);
-	bool Check(Token::Kind kind);
-	Ref<Token> Advance();
-	Ref<Token> Peek();
+	Ref<Statement> CreateDeclaration();
+	Ref<Statement> CreateStructStatement();
+	Ref<Statement> CreateClassStatement();
+	Ref<Stmt::Function> CreateFunction(bool isLambda);
+	Ref<Statement> CreateLetStatement();
+	Ref<Statement> CreatePropertyDeclaration();
+	Ref<Statement> CreateReturnStatement();
+	Ref<Statement> CreateForStatement();
+	Ref<Statement> CreateWhileStatement();
+	Ref<Statement> CreateIfStatement();
+	Ref<Statement> CreateStatement();
+	std::vector<RStatement> CreateBlock();
+	std::vector<RStatement> CreateStructInitializer();
+	Ref<Statement> CreateExpressionStatement();
+	Ref<Expression> ExpressionConsumeStatement();
+	Ref<Expression> CExpression();
+	Ref<Expression> Assignement();
+	Ref<Expression> Or();
+	Ref<Expression> And();
+	Ref<Expression> Equality();
+	Ref<Expression> Comparison();
+	Ref<Expression> Term();
+	Ref<Expression> Factor();
+	Ref<Expression> Unary();
+	Ref<Expression> Call();
+	Ref<Expression> FinishCall(Ref<Expression> callee);
+	Ref<Expression> Primary();
+
 	bool IsAtEnd();
-	Ref<Token> Previous();
-	Ref<Token> Previous(const std::int32_t offset);
-	static std::exception Report(Ref<Token>, const std::string&);
-	static std::string Diagnostic(Ref<Token>, const std::string&);
+	void Synchronize();
+	bool Match(Analysis::Token::Kind kind);
+	bool Check(Analysis::Token::Kind kind);
+	Ref<Analysis::Token> Consume(Analysis::Token::Kind kind, const std::string_view message);
+	Ref<Analysis::Token> Advance();
+	Ref<Analysis::Token> Peek();
+
+	Ref<Analysis::Token> Previous();
+	Ref<Analysis::Token> Previous(const std::int32_t offset);
+
+	static std::exception Report(Ref<Analysis::Token>, const std::string&);
+	static std::string Diagnostic(Ref<Analysis::Token>, const std::string&);
 
 private:
-	std::vector<Ref<Token>> m_tokens;
+
+	std::vector<Ref<Analysis::Token>> m_tokens;
 	std::size_t m_current = 0;
-	std::vector<Ref<AST::Statement>> m_statements;
+	std::vector<Ref<Statement>> m_statements;
+
 };
+
+}
