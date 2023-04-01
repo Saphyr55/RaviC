@@ -12,41 +12,37 @@ namespace Analysis {
 class Parser {
 
 public:
-enum Precedence : std::uint8_t {
-	NONE,
-	ASSIGNMENT,
-	OR,
-	AND,
-	EQUALITY,
-	COMPARISON,
-	TERM,    
-	FACTOR,  
-	UNARY,  
-	CALL,
-	PRIMARY
+enum Precedence : Byte {
+	NONE = 0,
+	ASSIGNMENT = 1,
+	OR = 2,
+	AND = 3,
+	EQUALITY = 4,
+	COMPARISON = 5,
+	TERM = 6,
+	FACTOR = 7,
+	UNARY = 8,
+	CALL = 9,
+	PRIMARY = 10
 };
 public:
 	void Expression();
-
-private:
     void Number();
     void Grouping();
     void Binary();
     void Unary();
     void ParsePrecedence(Precedence pre);
-
-private:
 	bool IsAtEnd();
 	bool Check(Token::Kind kind);
-    Ref<Token> Peek();
-    Ref<Token> Advance();
-    Ref<Token> Consume(Token::Kind kind, const std::string_view message);
+	Ref<Token> Peek();
+	Ref<Token> Advance();
+	Ref<Token> Consume(Token::Kind kind, const std::string_view message);
 	std::exception Report(const std::string& msg);
-    std::exception Report(Ref<Token> tk, const std::string& msg);
-    std::string Diagnostic(Ref<Token> tk, const std::string& msg);
-    void Emit8(const Byte& byte);
+	std::exception Report(Ref<Token> tk, const std::string& msg);
+	std::string Diagnostic(Ref<Token> tk, const std::string& msg);
+	void Emit8(const Byte& byte);
 	void Emit16(const Byte& byte1, const Byte& byte2);
-    void EmitConstant(const Value& value);
+	void EmitConstant(const Value& value);
 
 public:
     Parser(VM::Chunk& current_chunk, Lexer& lexer);

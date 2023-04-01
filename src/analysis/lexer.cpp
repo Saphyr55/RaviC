@@ -6,40 +6,21 @@
 
 namespace Analysis {
 
-    Lexer::Lexer(const std::string_view text) :
-        m_tokens(),
-        m_text(text),
-        m_col(0),
-        m_line(0),
-        m_position(0) { }
-
-    std::deque<RToken>& Lexer::Scan() {
-        
-        while (!IsAtEnd()) {
-            m_start = m_position;
-            NextToken();
-        }
-
-        m_tokens.push_back(
-            std::make_shared<Token>(
-                Token::Kind::TkEOF,
-                nullptr,
-                "\0",
-                m_line,
-                m_col
-            )
-        );
-
-        return m_tokens;
-    }
-
-    std::deque<Ref<Token>>& Lexer::GetDeque() {
-    
-        return m_tokens;
+    Lexer::Lexer(const std::string_view text)
+        : m_text(text), m_col(0), m_start(0), m_line(0), m_position(0) {
     }
 
     void Lexer::NextToken() {
+
+		m_start = m_position;
+
+		if (IsAtEnd()) {
+			AddToken(Token::Kind::TkEOF);
+			return;
+		}
+
         const char c = Advance();
+        
         switch (c) {
 
         case Less:         
@@ -102,87 +83,91 @@ namespace Analysis {
         case SlashOp: 
             AddSlashToken();
             break;
-        case BackslashN: 
-            m_line++; 
-            m_col = 0;
-            break;
-        case Space: 
+        case BackslashN: {
+			m_line++;
+			m_col = 0;
+			break;
+        }
+        case Space:
+            NextToken();
             break;
         case BackslashR: 
+            NextToken();
             break;
         case BackslashT:
-            break;
+            NextToken();
+			break;
         default: 
             AddDefaultToken(c);    
             break;
         }
     }
 
-    Ref<Token> Lexer::PeekToken() {
-
-        m_start = m_position;
-        NextToken();
+    Ref<Token> Lexer::PeekNextToken() {
         
-        if (m_tokens.empty())
-        {
-            return std::make_shared<Token>(
-                Token::Kind::TkEOF, nullptr,
-                "\0", m_line, m_col
-            );
-        }
-
-        return m_tokens.back();
-    }
-
-    Ref<Token> Lexer::PollToken() {
-        Ref<Token> tk = PeekToken();
-        m_tokens.pop_back();
-        return tk;
+        NextToken();
+        return GetCurrentTk();
     }
 
     void Lexer::AddToken(Token::Kind kind, void* value) {
+
         m_current_token = std::make_shared<Token>(
             kind, value,
             m_text.substr(m_start, m_position - m_start),
             m_line, m_col
         );
-		m_tokens.push_back(m_current_token);
     }
 
     Ref<Token> Lexer::GetCurrentTk() {
+
         return m_current_token;
     }
 
     bool Lexer::Match(const char expected) {
+
         if (IsAtEnd()) {
             return false;
         }
+        
         if (m_text[m_position] != expected) {
             return false;
         }
+        
         Next();
+
         return true;
     }
 
     char Lexer::Peek() {
+
         if (IsAtEnd()) {
             return '\0';
         }
+        
         return m_text[m_position];
     }
 
     void Lexer::AddDefaultToken(const char c) {
-        if (std::isdigit(c)) AddNumberToken();
-        else if (std::isalpha(c)) AddIdentifierToken();
-        else Report("Unexpected character");
+
+        if (std::isdigit(c)) 
+            AddNumberToken();
+        else if (std::isalpha(c)) 
+            AddIdentifierToken();
+        else 
+            Report("Unexpected character");
     }
 
     void Lexer::AddNumberToken() {
-        while (std::isdigit(Peek())) Next();
+
+        while (std::isdigit(Peek())) 
+            Next();
+
         if (Peek() == Dot && std::isdigit(PeekNext())) {
             Next();
-            while (std::isdigit(Peek())) Next();
+            while (std::isdigit(Peek())) 
+                Next();
         }
+
         double x = std::stod(m_text.substr(m_start, m_position - m_start));
         AddToken(Token::Kind::Number, &x);
     }
@@ -198,14 +183,20 @@ namespace Analysis {
     }
 
     void Lexer::CreateStringToken(const char q) {
+
         while (Peek() != q && !IsAtEnd()) {
-            if (Peek() == '\n') m_line++;
+
+            if (Peek() == '\n') 
+                m_line++;
+
             Advance();
         }
+
         if (IsAtEnd()) {
             Report("Unterminated string");
             return;
         }
+
         Next();
         std::string value = m_text.substr(m_start + 1, (m_position - 1) - (m_start + 1));
         AddToken(Token::Kind::String, &value);
@@ -221,32 +212,44 @@ namespace Analysis {
         }
     }
 
+    Ref<Token> Lexer::GetLastToken() {
+
+		m_last_token->Line = m_line;
+		m_last_token->Col = m_col;
+		return m_last_token;
+    }
+
     char Lexer::PeekNext() {
+
         if (m_position + 1 >= m_text.size()) return '\0';
         return m_text[m_position + 1];
     }
 
     char Lexer::Advance() {
+
         return m_text[Next()];
     }
 
     std::size_t Lexer::Next() {
+
         m_col++;
         return m_position++;
     }
 
     bool Lexer::IsAtEnd() {
+
         return m_position >= m_text.size();
     }
 
     void Lexer::Report(std::string message) {
+
         std::cerr << "Error: " << message << " at [" << (m_line + 1) << "," << (m_col + 1) << "].\n";
     }
 
-    std::string Token::ToString(Kind kind)
-    {
-        switch (kind)
-        {
+    std::string Token::ToString(Kind kind) {
+
+        switch (kind) {
+
         case Token::Kind::TkEOF:
             return "TkEOF";
         case Token::Kind::Func:

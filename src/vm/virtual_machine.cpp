@@ -64,9 +64,9 @@ namespace VM {
 		Byte byte2 = Read8();
 		Byte bytes[] = { byte1, byte2 };
 
-		std::size_t value;
-		std::memcpy(&value, bytes, sizeof(std::size_t));
-		return m_chunk.m_memory.GetHandle()[value];
+		std::size_t addr;
+		std::memcpy(&addr, bytes, sizeof(std::size_t));
+		return m_chunk.m_memory.GetHandle()[addr];
 	}
 
 	Chunk& RVM::CurrentChunk() {
@@ -92,7 +92,7 @@ namespace VM {
 			
 			Byte instruction;
 			switch (instruction = Read8()) {
-			
+
 			case OpCode::Constant: {
 				
 				Value constant = ReadConstant();
@@ -102,9 +102,7 @@ namespace VM {
 		
 			case OpCode::End: {
 
-				if (!m_values.empty())
-					m_values.pop();
-
+				m_values.pop();
 				return InterpreteResult::OK;
 			}
 

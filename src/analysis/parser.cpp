@@ -8,7 +8,7 @@ namespace Analysis {
 
 	void Parser::Expression() {
 		
-		ParsePrecedence(ASSIGNMENT);
+		ParsePrecedence(Precedence::ASSIGNMENT);
 	}
 
 	void Parser::Number() {
@@ -27,7 +27,7 @@ namespace Analysis {
 		
 		RToken operator_ = m_previous;
 		Rule rule = Rule::Get(operator_->KindType);
-		ParsePrecedence(rule.precedence);
+		ParsePrecedence(Precedence(rule.precedence + 1));
 
 		switch (operator_->KindType)
 		{
@@ -51,7 +51,7 @@ namespace Analysis {
 	void Parser::Unary() {
 		
 		RToken operator_ = m_previous;
-		ParsePrecedence(UNARY);
+		ParsePrecedence(Precedence::UNARY);
 		
 		switch (operator_->KindType)
 		{
@@ -64,7 +64,7 @@ namespace Analysis {
 	}
 
 	void Parser::ParsePrecedence(Precedence pre) {
-		
+
 		Advance();
 		Rule rule = Rule::Get(m_previous->KindType);
 		
@@ -73,43 +73,43 @@ namespace Analysis {
 		}
 		
 		rule.prefix(*this);
-		
-		while (pre <= Rule::Get(m_previous->KindType).precedence) {
+
+		while (pre <= Rule::Get(m_current->KindType).precedence) {
+
 			Advance();
-			Rule::Get(m_previous->KindType).infix(*this);
+			Rule previous_rule = Rule::Get(m_previous->KindType);
+			previous_rule.infix(*this);
 		}
 	}
-
-
-	Ref<Token> Parser::Advance() {
-		
-		m_previous = m_current;
-		m_current = lexer.PollToken();
-		return m_current;
-	}
-
+	
 	Ref<Token> Parser::Consume(Token::Kind kind, const std::string_view message) {
 		
-		if (Check(kind)) return Advance();
+		if (Check(kind)) 
+			return Advance();
 		
 		throw Report(std::string(message));
 	}
 
+	Ref<Token> Parser::Advance() {
+
+		m_previous = m_current;
+		m_current = Peek();
+		return m_current;
+	}
+
 	bool Parser::Check(Token::Kind kind) {
-		
-		if (IsAtEnd()) return false;
-		
-		return Peek()->KindType == kind;
+
+		return m_current->KindType == kind;
 	}
 
 	bool Parser::IsAtEnd() {
 
-		return Peek()->KindType == Token::Kind::TkEOF;
+		return m_current->KindType == Token::Kind::TkEOF;
 	}
 
 	Ref<Token> Parser::Peek() {
-		
-		return lexer.PeekToken();
+
+		return lexer.PeekNextToken();
 	}
 
 	std::exception Parser::Report(Ref<Token> tk, const std::string& msg) {
@@ -134,8 +134,7 @@ namespace Analysis {
 	Parser::Parser(VM::Chunk& current_chunk, Lexer& lexer)
 		: current_chunk(current_chunk), lexer(lexer) {
 
-		lexer.Scan();
-		m_current = lexer.PollToken();
+		Advance();
 	}
 
 	void Parser::Emit8(const Byte& byte) {
@@ -151,13 +150,15 @@ namespace Analysis {
 	}
 
 	void Parser::EmitConstant(const Value& value) {
+
 		auto constant = current_chunk.AddConstant(value);
+		
 		if (constant > UINT8_MAX) {
 			throw Report("Too many constants in one chunk.");
 		}
+		
 		Emit16(VM::OpCode::Constant, constant);
 	}
-
 
 	Parser::Rule Parser::Rule::Get(Token::Kind type) {
 		return rules[type];
@@ -167,39 +168,39 @@ namespace Analysis {
 		: prefix(prefix), infix(infix), precedence(precedence) { }
 
 	std::unordered_map<Token::Kind, Parser::Rule> Parser::Rule::rules = {
-		{Token::Kind::OpenParenthesis, Rule(&Parser::Grouping, nullptr, NONE)},
-		{Token::Kind::CloseParenthesis, Rule(nullptr, nullptr,   NONE)},
-		{Token::Kind::OpenBracket, Rule(&Parser::Grouping, nullptr,   NONE)},
-		{Token::Kind::CloseBracket, Rule( nullptr,     nullptr,   NONE )},
-		{Token::Kind::Comma,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Dot,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Minus,Rule(&Parser::Unary,    &Parser::Binary, TERM)},
-		{Token::Kind::Plus,Rule(nullptr, &Parser::Binary, TERM )},
-		{Token::Kind::Semicolon,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Slash,Rule(nullptr, &Parser::Binary, FACTOR )},
-		{Token::Kind::Star,Rule(nullptr, &Parser::Binary, FACTOR )},
-		{Token::Kind::Not,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::NotEqual,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Assign,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Equal,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Greater,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::GreaterEqual,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Less,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::LessEqual,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Identifier,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::String,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Number, Rule(&Parser::Number,   nullptr,   NONE)},
-		{Token::Kind::LogicalAnd,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Else,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::False,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::For,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Func,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::If,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::LogicalOr,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Return,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::True,Rule(nullptr,     nullptr,   NONE )},
-		{Token::Kind::Let,Rule(nullptr,     nullptr,   NONE )}
-
+		{Token::Kind::OpenParenthesis,  Rule(&Parser::Grouping,			nullptr,	Precedence::NONE)},
+		{Token::Kind::CloseParenthesis, Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::OpenBracket,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::CloseBracket,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Comma,			Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Dot,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Minus,			Rule(&Parser::Unary,    &Parser::Binary,	Precedence::TERM)},
+		{Token::Kind::Plus,				Rule(nullptr,			&Parser::Binary,	Precedence::TERM)},
+		{Token::Kind::Semicolon,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Slash,			Rule(nullptr,			&Parser::Binary,	Precedence::FACTOR)},
+		{Token::Kind::Star,				Rule(nullptr,			&Parser::Binary,	Precedence::FACTOR)},
+		{Token::Kind::Assign,			Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Not,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::NotEqual,			Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::Equal,			Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::Greater,			Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::GreaterEqual,		Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::Less,				Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::LessEqual,		Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::Identifier,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::String,			Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Number,			Rule(&Parser::Number,			nullptr,	Precedence::NONE)},
+		{Token::Kind::LogicalAnd,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Else,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::False,			Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::For,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Func,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::If,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::LogicalOr,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Return,			Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::True,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Let,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::TkEOF,				Rule(nullptr,					nullptr,	Precedence::NONE)},
 	};
 
 }

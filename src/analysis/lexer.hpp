@@ -110,6 +110,7 @@ public:
 	static const char BackslashN = '\n';
 	static const char BackslashT = '\t';
 	static const char BackslashR = '\r';
+	static const char Backslash0 = '\0';
 	static const char PlusOp = '+';
 	static const char MinusOp = '-';
 	static const char StartOp = '*';
@@ -130,12 +131,9 @@ public:
 	static const char Equal = '=';
 	
 public:
-	std::deque<Ref<Token>>& Scan();
-	std::deque<Ref<Token>>& GetDeque();
 	void NextToken();
 	Ref<Token> GetCurrentTk();
-	Ref<Token> PeekToken();
-	Ref<Token> PollToken();
+	Ref<Token> PeekNextToken();
 	bool IsAtEnd();
 
 private:
@@ -147,6 +145,7 @@ private:
 	void AddIdentifierToken();
 	void CreateStringToken(const char q);
 	void AddSlashToken();
+	Ref<Token> GetLastToken();
 	char PeekNext();
 	char Advance();
 	std::size_t Next();
@@ -164,8 +163,8 @@ private:
 	std::string m_text;
 	std::size_t m_line;
 	std::size_t m_col;
+	Ref<Token> m_last_token;
 	Ref<Token> m_current_token;
-	std::deque<Ref<Token>> m_tokens;
 
 };
 

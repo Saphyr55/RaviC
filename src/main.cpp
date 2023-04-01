@@ -7,16 +7,18 @@
 std::string source = "func main () { let mut m : i32 = 3 if (1 != 0) return 0; }";
 
 int main(int argc, char** argv) {
+	
 	/*
 	Analysis::Lexer lexer(source);
 	
-	while (!lexer.IsAtEnd()) {
+	for (int i = 0; i < 24; i++) {
 
-		auto& t = *lexer.PeekToken();
-		std::cout << t.Text << " " << Analysis::Token::ToString(t.KindType) << "\n";
+		auto t = lexer.PeekNextToken();
+		std::cout << t->Text << " " << Analysis::Token::ToString(t->KindType) << "\n";
 	
 	}
 	*/
+	
 	/*
 	VM::Chunk chunk;
 	
@@ -31,8 +33,9 @@ int main(int argc, char** argv) {
 	VM::RVM vm(chunk);
 	vm.Run();
 	*/
+	
 	VM::RVM rvm;
-	rvm.Run("2 + 1;");
+	rvm.Run("2 + (6 * 2) ");
 	
     return 0;
 }
