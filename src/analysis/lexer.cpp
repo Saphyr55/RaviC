@@ -23,83 +23,83 @@ namespace Analysis {
         
         switch (c) {
 
-        case Less:         
-            AddToken(Match(Equal) ? Token::Kind::LessEqual: Token::Kind::Less);
-            break;
-        case Greater:         
-            AddToken(Match(Equal) ? Token::Kind::GreaterEqual : Token::Kind::Greater);
-            break;
-        case Comma: 
-            AddToken(Token::Kind::Comma);
-            break;
-        case BackQuote: 
-            CreateStringToken(BackQuote);
-            break;
-        case DoubleQuote: 
-            CreateStringToken(DoubleQuote);
-            break;
-        case OpenParenthesis: 
-            AddToken(Token::Kind::OpenParenthesis);
-            break;
-        case CloseParenthesis: 
-            AddToken(Token::Kind::CloseParenthesis);
-            break;
-        case Bang:
-            AddToken(Match(Equal) ? Token::Kind::NotEqual : Token::Kind::Not);
-            break;
-        case Equal:
-            AddToken(Match(Equal) ? Token::Kind::Equal : Token::Kind::Assign); 
-            break;
-        case Ampersand: 
-            AddToken(Match(Ampersand) ? Token::Kind::LogicalAnd : Token::Kind::BinaryAnd);
-            break;
-        case Pipeline: 
-            AddToken(Match(Pipeline) ? Token::Kind::LogicalOr : Token::Kind::BinaryOr);
-            break;
-        case OpenBrackets:
-            AddToken(Token::Kind::OpenBracket);
-            break;
-        case CloseBrackets: 
-            AddToken(Token::Kind::CloseBracket);
-            break;
-        case Dot: 
-            AddToken(Token::Kind::Dot);
-            break;
-        case Colon: 
-            AddToken(Token::Kind::Colon);
-            break;
-        case Semicolon: 
-            AddToken(Token::Kind::Semicolon);
-            break;
-        case MinusOp: 
-            AddToken(Match(Greater) ? Token::Kind::Arrow : Token::Kind::Minus);
-            break;
-        case PlusOp: 
-            AddToken(Token::Kind::Plus);
-            break;
-        case StartOp: 
-            AddToken(Token::Kind::Star);
-            break;
-        case SlashOp: 
-            AddSlashToken();
-            break;
-        case BackslashN: {
-			m_line++;
-			m_col = 0;
-			break;
-        }
-        case Space:
-            NextToken();
-            break;
-        case BackslashR: 
-            NextToken();
-            break;
-        case BackslashT:
-            NextToken();
-			break;
-        default: 
-            AddDefaultToken(c);    
-            break;
+            case Less:
+                AddToken(Match(Equal) ? Token::Kind::LessEqual: Token::Kind::Less);
+                break;
+            case Greater:
+                AddToken(Match(Equal) ? Token::Kind::GreaterEqual : Token::Kind::Greater);
+                break;
+            case Comma:
+                AddToken(Token::Kind::Comma);
+                break;
+            case BackQuote:
+                CreateStringToken(BackQuote);
+                break;
+            case DoubleQuote:
+                CreateStringToken(DoubleQuote);
+                break;
+            case OpenParenthesis:
+                AddToken(Token::Kind::OpenParenthesis);
+                break;
+            case CloseParenthesis:
+                AddToken(Token::Kind::CloseParenthesis);
+                break;
+            case Bang:
+                AddToken(Match(Equal) ? Token::Kind::NotEqual : Token::Kind::Not);
+                break;
+            case Equal:
+                AddToken(Match(Equal) ? Token::Kind::Equal : Token::Kind::Assign);
+                break;
+            case Ampersand:
+                AddToken(Match(Ampersand) ? Token::Kind::LogicalAnd : Token::Kind::BinaryAnd);
+                break;
+            case Pipeline:
+                AddToken(Match(Pipeline) ? Token::Kind::LogicalOr : Token::Kind::BinaryOr);
+                break;
+            case OpenBrackets:
+                AddToken(Token::Kind::OpenBracket);
+                break;
+            case CloseBrackets:
+                AddToken(Token::Kind::CloseBracket);
+                break;
+            case Dot:
+                AddToken(Token::Kind::Dot);
+                break;
+            case Colon:
+                AddToken(Token::Kind::Colon);
+                break;
+            case Semicolon:
+                AddToken(Token::Kind::Semicolon);
+                break;
+            case MinusOp:
+                AddToken(Match(Greater) ? Token::Kind::Arrow : Token::Kind::Minus);
+                break;
+            case PlusOp:
+                AddToken(Token::Kind::Plus);
+                break;
+            case StartOp:
+                AddToken(Token::Kind::Star);
+                break;
+            case SlashOp:
+                AddSlashToken();
+                break;
+            case BackslashN: {
+                m_line++;
+                m_col = 0;
+                break;
+            }
+            case Space:
+                NextToken();
+                break;
+            case BackslashR:
+                NextToken();
+                break;
+            case BackslashT:
+                NextToken();
+                break;
+            default:
+                AddDefaultToken(c);
+                break;
         }
     }
 
@@ -109,13 +109,9 @@ namespace Analysis {
         return GetCurrentTk();
     }
 
-    void Lexer::AddToken(Token::Kind kind, void* value) {
-
-        m_current_token = std::make_shared<Token>(
-            kind, value,
-            m_text.substr(m_start, m_position - m_start),
-            m_line, m_col
-        );
+    void Lexer::AddToken(Token::Kind kind) {
+        auto string = m_text.substr(m_start, m_position - m_start);
+        m_current_token = std::make_shared<Token>(kind,string,m_line,m_col);
     }
 
     Ref<Token> Lexer::GetCurrentTk() {
@@ -168,16 +164,16 @@ namespace Analysis {
                 Next();
         }
 
-        double x = std::stod(m_text.substr(m_start, m_position - m_start));
-        AddToken(Token::Kind::Number, &x);
+        AddToken(Token::Kind::Number);
     }
 
     void Lexer::AddIdentifierToken() {
-        while (std::isalnum(Peek())) Next();
+
+        while (std::isalnum(Peek()))
+            Next();
         try {
             AddToken(Words.at(m_text.substr(m_start, m_position - m_start)));
-        }
-        catch (const std::exception&) {
+        } catch (const std::exception&) {
             AddToken(Token::Kind::Identifier);
         }
     }
@@ -198,16 +194,14 @@ namespace Analysis {
         }
 
         Next();
-        std::string value = m_text.substr(m_start + 1, (m_position - 1) - (m_start + 1));
-        AddToken(Token::Kind::String, &value);
+        AddToken(Token::Kind::String);
     }
 
     void Lexer::AddSlashToken() {
         if (Match(SlashOp)) {
             while (Peek() != '\n' && !IsAtEnd())
                 Next();
-        }
-        else {
+        } else {
             AddToken(Token::Kind::Slash);
         }
     }
@@ -255,7 +249,7 @@ namespace Analysis {
         case Token::Kind::Func:
             return "Func";
         case Token::Kind::Number:
-            return "Number";
+            return "TNumber";
         case Token::Kind::Let:
             return "Let";
         case Token::Kind::Mut:

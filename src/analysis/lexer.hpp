@@ -55,25 +55,23 @@ public:
 		Plus,
 		Star,
 		Slash,
-		String
+		String,
+        Null,
 	};
 
 public:
 	Token(
 		Kind kindType,
-		void* data,
 		std::string_view text,
 		std::size_t line,
 		std::size_t col
-	) : 
-		KindType(kindType),
-		Data(data),
-		Text(text), 
-		Line(line), 
-		Col(col)
+	) :
+            Type(kindType),
+            Text(text),
+            Line(line),
+            Col(col)
 	{ }
-	Kind KindType;
-	void* Data;
+	Kind Type;
 	std::string Text;
 	std::size_t Line;
 	std::size_t Col;
@@ -84,20 +82,20 @@ public:
 
 using RToken = Ref<Token>;
 
-static const std::unordered_map<std::string, Token::Kind> Words{
-	{ "func", Token::Kind::Func},
-	{ "true" ,Token::Kind::True},
-	{ "false", Token::Kind::False},
-	{ "let", Token::Kind::Let},
-	{ "mut", Token::Kind::Mut},
-	{ "return", Token::Kind::Return},
-	{ "struct", Token::Kind::Struct},
-	{ "class", Token::Kind::Class},
-	{ "while", Token::Kind::While},
-	{ "for", Token::Kind::For},
-	{ "if", Token::Kind::If},
-	{ "else", Token::Kind::Else},
-	{ "namespace", Token::Kind::Namespace},
+static const std::unordered_map<std::string, Token::Kind> Words {
+	{ "func",       Token::Kind::Func},
+	{ "true" ,      Token::Kind::True},
+	{ "false",      Token::Kind::False},
+	{ "let",        Token::Kind::Let},
+	{ "mut",        Token::Kind::Mut},
+	{ "return",     Token::Kind::Return},
+	{ "struct",     Token::Kind::Struct},
+	{ "class",      Token::Kind::Class},
+	{ "while",      Token::Kind::While},
+	{ "for",        Token::Kind::For},
+	{ "if",         Token::Kind::If},
+	{ "else",       Token::Kind::Else},
+	{ "namespace",  Token::Kind::Namespace},
 };
 
 class Lexer {
@@ -137,13 +135,13 @@ public:
 	bool IsAtEnd();
 
 private:
-	void AddToken(Token::Kind kind, void* value = nullptr);
-	bool Match(const char expected);
+	void AddToken(Token::Kind kind);
+	bool Match(char expected);
 	char Peek();
-	void AddDefaultToken(const char c);
+	void AddDefaultToken(char c);
 	void AddNumberToken();
 	void AddIdentifierToken();
-	void CreateStringToken(const char q);
+	void CreateStringToken(char q);
 	void AddSlashToken();
 	Ref<Token> GetLastToken();
 	char PeekNext();
@@ -152,7 +150,7 @@ private:
 	void Report(std::string message);
 
 public:
-	Lexer(const std::string_view text);
+	explicit Lexer(std::string_view text);
 	Lexer(const Lexer&) = default;
 	Lexer(Lexer&&) = default;
 	~Lexer() = default;

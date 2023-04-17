@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 	for (int i = 0; i < 24; i++) {
 
 		auto t = lexer.PeekNextToken();
-		std::cout << t->Text << " " << Analysis::Token::ToString(t->KindType) << "\n";
+		std::cout << t->Text << " " << Analysis::Token::ToString(t->Type) << "\n";
 	
 	}
 	*/
@@ -33,9 +33,11 @@ int main(int argc, char** argv) {
 	VM::RVM vm(chunk);
 	vm.Run();
 	*/
-	
+
+    auto script = "let x = 1; let y =0;";
+
 	VM::RVM rvm;
-	rvm.Run("2 + (6 * 2) ");
+	rvm.Run(std::string(script));
 	
     return 0;
 }

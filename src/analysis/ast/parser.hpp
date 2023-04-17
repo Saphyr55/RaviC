@@ -5,13 +5,13 @@
 #include "analysis/ast/statement.hpp"
 #include "analysis/ast/expression.hpp"
 
-namespace AST {
+namespace Analysis::AST {
 
 class Parser {
 
 public:
-	Parser(std::vector<Ref<Analysis::Token>> tokens);
-	static std::vector<RStatement> Parse(const std::string_view text);
+	explicit Parser(std::vector<Ref<Analysis::Token>> tokens);
+	static std::vector<RStatement> Parse(std::string_view text);
 	std::vector<RStatement> Parse();
 
 private:
@@ -47,15 +47,15 @@ private:
 	void Synchronize();
 	bool Match(Analysis::Token::Kind kind);
 	bool Check(Analysis::Token::Kind kind);
-	Ref<Analysis::Token> Consume(Analysis::Token::Kind kind, const std::string_view message);
+	Ref<Analysis::Token> Consume(Analysis::Token::Kind kind, std::string_view message);
 	Ref<Analysis::Token> Advance();
 	Ref<Analysis::Token> Peek();
 
 	Ref<Analysis::Token> Previous();
-	Ref<Analysis::Token> Previous(const std::int32_t offset);
+	Ref<Analysis::Token> Previous(std::int32_t offset);
 
-	static std::exception Report(Ref<Analysis::Token>, const std::string&);
-	static std::string Diagnostic(Ref<Analysis::Token>, const std::string&);
+	static std::exception Report(const Ref<Analysis::Token>&, const std::string_view);
+	static std::string Diagnostic(const Ref<Analysis::Token>&, const std::string_view);
 
 private:
 

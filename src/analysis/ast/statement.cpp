@@ -1,5 +1,7 @@
 #include "analysis/ast/statement.hpp"
 
+namespace Analysis {
+
 namespace AST {
 
 namespace Stmt {
@@ -19,24 +21,26 @@ namespace Stmt {
 	{
 	}
 
-	While::While(Ref<::AST::Expression> condition_, Ref<Statement> body) : Body(body), Condition_(condition_)
+	While::While(Ref<::Analysis::AST::Expression> condition_, Ref<Statement> body) : Body(body), Condition_(condition_)
 	{
 	}
 
-	Expression::Expression(Ref<::AST::Expression> expression)
+	Expression::Expression(Ref<::Analysis::AST::Expression> expression)
 		: Expression_(expression) { }
 
-	If::If(Ref<::AST::Expression> condition, RStatement thenBranch, RStatement elseBranch) :
+	If::If(Ref<::Analysis::AST::Expression> condition, RStatement thenBranch, RStatement elseBranch) :
 		Condition(condition), ThenBranch(thenBranch), ElseBranch(elseBranch) {}
 
-	Let::Let(Analysis::RToken name, Analysis::RToken type, Ref<::AST::Expression> initializer, bool mutable_) :
+	Let::Let(Analysis::RToken name, Analysis::RToken type, Ref<::Analysis::AST::Expression> initializer, bool mutable_) :
 		Name(name),
 		Type(type),
 		Initializer(initializer),
 		Mutable(mutable_) {}
 
-	Return::Return(Analysis::RToken kw, ::AST::RExpression value) :
+	Return::Return(Analysis::RToken kw, ::Analysis::AST::RExpression value) :
 		Kw(kw), Value(value), FunctionStmt(nullptr) { }
+}
+
 }
 
 }

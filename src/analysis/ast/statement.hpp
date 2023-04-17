@@ -7,7 +7,7 @@
 #include "analysis/lexer.hpp"
 #include "analysis/ast/expression.hpp"
 
-namespace AST {
+namespace Analysis::AST {
 
 class Statement {
 public:
@@ -42,15 +42,15 @@ public:
 
 class While : public Statement {
 public:
-	While(Ref<::AST::Expression> condition_, RStatement body);
+	While(Ref<::Analysis::AST::Expression> condition_, RStatement body);
 	Ref<Statement> Body;
-	Ref<::AST::Expression> Condition_;
+	Ref<::Analysis::AST::Expression> Condition_;
 };
 
 class If : public Statement {
 public:
-	If(Ref<::AST::Expression> condition, RStatement thenBranch, RStatement elseBranch);
-	Ref<::AST::Expression> Condition;
+	If(Ref<::Analysis::AST::Expression> condition, RStatement thenBranch, RStatement elseBranch);
+	Ref<::Analysis::AST::Expression> Condition;
 	Ref<Statement> ThenBranch, ElseBranch;
 };
 
@@ -59,27 +59,27 @@ public:
 	Let(
 		Analysis::RToken name,
 		Analysis::RToken type,
-		Ref<::AST::Expression> initializer,
+		Ref<::Analysis::AST::Expression> initializer,
 		bool mutable_
 	);
 	Ref<Analysis::Token> Name;
 	Ref<Analysis::Token> Type;
-	Ref<::AST::Expression> Initializer;
+	Ref<::Analysis::AST::Expression> Initializer;
 	bool Mutable;
 };
 
 class Return : public Statement {
 public:
-	Return(Analysis::RToken kw, ::AST::RExpression value);
+	Return(Analysis::RToken kw, ::Analysis::AST::RExpression value);
 	Analysis::RToken Kw;
-	::AST::RExpression Value;
+	::Analysis::AST::RExpression Value;
 	Ref<Function> FunctionStmt;
 };
 
 class Expression: public Statement {
 public:
-	Expression(Ref<::AST::Expression> expression_);
-	Ref<::AST::Expression> Expression_;
+	Expression(Ref<::Analysis::AST::Expression> expression_);
+	Ref<::Analysis::AST::Expression> Expression_;
 };
 
 }

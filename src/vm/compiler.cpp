@@ -5,9 +5,13 @@ namespace VM {
 
     void Compiler::Compile() {
 
-        parser.Expression();
+        parser.Advance();
 
-		parser.Consume(Analysis::Token::Kind::TkEOF, "Wait end expression.");
+        while (!parser.IsAtEnd()) {
+            parser.Decleration();
+        }
+
+        parser.Consume(Analysis::Token::Kind::TkEOF, "Wait end expression.");
 		vm.CurrentChunk().Write8(OpCode::End);
 
     }
@@ -15,7 +19,7 @@ namespace VM {
     Compiler::Compiler(RVM& vm, std::string_view source)
         : lexer(source), parser(vm.CurrentChunk(), lexer), vm(vm)
     {
-       
+
     }
 
    

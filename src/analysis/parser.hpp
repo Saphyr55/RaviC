@@ -26,23 +26,36 @@ enum Precedence : Byte {
 	PRIMARY = 10
 };
 public:
-	void Expression();
+    void Expression();
+    void Decleration();
+    void Statement();
+    void Literal();
     void Number();
+    void Let();
     void Grouping();
     void Binary();
     void Unary();
+    void String();
+    void PrintStatement();
+    void ExpressionStatement();
+    void LetDeclaration();
     void ParsePrecedence(Precedence pre);
 	bool IsAtEnd();
+    bool Match(Token::Kind kind);
 	bool Check(Token::Kind kind);
+    void Synchronize();
 	Ref<Token> Peek();
 	Ref<Token> Advance();
-	Ref<Token> Consume(Token::Kind kind, const std::string_view message);
-	std::exception Report(const std::string& msg);
-	std::exception Report(Ref<Token> tk, const std::string& msg);
-	std::string Diagnostic(Ref<Token> tk, const std::string& msg);
+	Ref<Token> Consume(Token::Kind kind, std::string_view message);
+	std::exception Report(std::string_view msg);
+    std::exception Report(const Ref<Token>& tk, std::string_view msg);
+	std::string Diagnostic(const Ref<Token>& tk, std::string_view msg);
 	void Emit8(const Byte& byte);
 	void Emit16(const Byte& byte1, const Byte& byte2);
-	void EmitConstant(const Value& value);
+	void EmitConstant(const Common::Value& value);
+    Byte IdentifierConstant(const Ref<Analysis::Token> &name);
+    static std::string CopyString(const Ref<Token>& tk);
+    static std::string CopyStringDQ(const Ref<Token>& tk);
 
 public:
     Parser(VM::Chunk& current_chunk, Lexer& lexer);
@@ -52,7 +65,8 @@ private:
     Lexer lexer;
     Ref<Token> m_current;
     Ref<Token> m_previous;
-	VM::Chunk& current_chunk;
+	VM::Chunk& m_current_chunk;
+    bool m_panic_mode = false;
 
 private:
 
@@ -70,7 +84,6 @@ public:
 	Rule(const Rule&) = default;
 	Rule(Rule&&) = default;
 	~Rule() = default;
-
 
 private:
 	static std::unordered_map<Token::Kind, Rule> rules;

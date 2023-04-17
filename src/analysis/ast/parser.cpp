@@ -1,22 +1,23 @@
 #include "analysis/ast/parser.hpp"
 #include <iostream>
+#include <queue>
+#include <utility>
 
-namespace AST {
+namespace Analysis::AST {
 
 	Parser::Parser(std::vector<Ref<Analysis::Token>> tokens) 
-		: m_tokens(tokens) 
+		: m_tokens(std::move(tokens))
 	{ }
 
 	std::vector<RStatement> Parser::Parse(const std::string_view text) {
 		
 		Analysis::Lexer lexer(text);
-		
-		std::queue<Analysis::RToken> queue_tokens = lexer.Scan();
+
 		std::vector<Analysis::RToken> tokens;
-		for (int i = 0; !queue_tokens.empty(); i++) {
-			tokens.push_back(queue_tokens.front());
-			queue_tokens.pop();
-		}
+        while (!lexer.IsAtEnd()) {
+            auto t = lexer.PeekNextToken();
+            tokens.push_back(t);
+        }
 
 		Parser parser(tokens);
 
@@ -149,7 +150,7 @@ namespace AST {
 		}
 
 		if (condition == nullptr)
-			condition = std::make_shared<Expr::Literal>((void*)true);
+			condition = std::make_shared<Expr::Literal>("true");
 
 		body = std::make_shared<Stmt::While>(condition, body);
 
@@ -369,11 +370,11 @@ namespace AST {
 
 	RExpression Parser::Primary() {
 
-		if (Match(Analysis::Token::Kind::False)) return std::make_shared<Expr::Literal>((void*)false);
-		if (Match(Analysis::Token::Kind::True)) return std::make_shared<Expr::Literal>((void*)true);
-		// if (Match(Analysis::Token::Kind::Null)) return std::make_shared<Expr::Literal>(nullptr);
-		if (Match(Analysis::Token::Kind::Number)) return std::make_shared<Expr::Literal>(Previous()->Data);
-		if (Match(Analysis::Token::Kind::String)) return std::make_shared<Expr::Literal>(Previous()->Data);
+		if (Match(Analysis::Token::Kind::False)) return std::make_shared<Expr::Literal>("false");
+		if (Match(Analysis::Token::Kind::True)) return std::make_shared<Expr::Literal>("true");
+		// if (Match(Analysis::Token::Kind::TNull)) return std::make_shared<Expr::Literal>(nullptr);
+		if (Match(Analysis::Token::Kind::Number)) return std::make_shared<Expr::Literal>(Previous()->Text);
+		if (Match(Analysis::Token::Kind::String)) return std::make_shared<Expr::Literal>(Previous()->Text);
 		if (Match(Analysis::Token::Kind::Identifier)) return std::make_shared<Expr::Let>(Previous());
 		// if (Match(Analysis::Token::Kind::ThisKw)) return std::make_shared<Expr::This>(previous());
 		if (Match(Analysis::Token::Kind::Func)) return std::make_shared<Expr::Lambda>(CreateFunction(true));
@@ -388,10 +389,10 @@ namespace AST {
 	void Parser::Synchronize() {
 		Advance();
 		while (!IsAtEnd()) {
-			if (Previous()->KindType == Analysis::Token::Kind::Semicolon) {
+			if (Previous()->Type == Analysis::Token::Kind::Semicolon) {
 				return;
 			}
-			switch (Peek()->KindType)
+			switch (Peek()->Type)
 			{
 				//		case Analysis::Token::Kind::Class:
 				//			return;
@@ -438,7 +439,7 @@ namespace AST {
 
 	bool Parser::Check(Analysis::Token::Kind kind) {
 		if (IsAtEnd()) return false;
-		return Peek()->KindType == kind;
+		return Peek()->Type == kind;
 	}
 
 	Ref<Analysis::Token> Parser::Advance() {
@@ -453,7 +454,7 @@ namespace AST {
 	}
 
 	bool Parser::IsAtEnd() {
-		return Peek()->KindType == Analysis::Token::Kind::TkEOF;
+		return Peek()->Type == Analysis::Token::Kind::TkEOF;
 	}
 
 	Ref<Analysis::Token> Parser::Previous() {
@@ -464,16 +465,15 @@ namespace AST {
 		return m_tokens.at(m_current - offset);
 	}
 
-	std::exception Parser::Report(Ref<Analysis::Token> tk, const std::string& msg) {
+	std::exception Parser::Report(const Ref<Analysis::Token>& tk, const std::string_view msg) {
 		std::cerr << Diagnostic(tk, msg) << "\n";
-		return std::exception();
+		return {};
 	}
 
-	std::string Parser::Diagnostic(Ref<Analysis::Token> tk, const std::string& msg) {
-		if (tk->KindType == Analysis::Token::Kind::TkEOF) return "Error: " + msg + " at end";
-		return "Error: To the line " + std::to_string(tk->Line + 1) + " for '" + tk->Text.c_str() + "' | " + msg;
+	std::string Parser::Diagnostic(const Ref<Analysis::Token>& tk, const std::string_view msg) {
+		if (tk->Type == Analysis::Token::Kind::TkEOF) return "Error: " + std::string(msg) + " at end";
+		return "Error: To the line " + std::to_string(tk->Line + 1) + " for '" + tk->Text + "' | " + std::string(msg);
 	}
 
 }
-
 

@@ -1,48 +1,38 @@
 #include <iostream>
 #include <cstring>
+#include <cstdarg>
 #include "vm/virtual_machine.hpp"
-#include "vm/memory.hpp"
 #include "vm/compiler.hpp"
+#include "instruction.hpp"
 
 namespace VM {
 
-	RVM::RVM(Chunk& c) : m_chunk(c), m_pc(0), m_index_pc(0) { }
+	RVM::RVM(Chunk& c) : m_chunk(c), m_pc(OpCode::End), m_index_pc(0) { }
 
-	void RVM::BinaryAdd() {
+    void RVM::RuntimeError(const char* format, ...) {
 
-		Value b = m_values.top();
-		m_values.pop();
-		Value a = m_values.top();
-		m_values.pop();
-		m_values.push(a + b);
-	}
+        m_has_runtime_error = true;
+        va_list args;
+        va_start(args, format);
+        vfprintf(stderr, format, args);
+        va_end(args);
+        fputs("\n", stderr);
 
-	void RVM::BinaryMul() {
+        std::size_t instruction = m_pc - m_chunk.m_current_line - 1;
+        std::size_t line = m_chunk.m_lines[instruction];
+        fprintf(stderr, "[line %zu] in script\n", line);
+        Free();
+    }
 
-		Value b = m_values.top();
-		m_values.pop();
-		Value a = m_values.top();
-		m_values.pop();
-		m_values.push(a * b);
-	}
-
-	void RVM::BinarySub() {
-
-		Value b = m_values.top();
-		m_values.pop();
-		Value a = m_values.top();
-		m_values.pop();
-		m_values.push(a - b);
-	}
-
-	void RVM::BinaryDiv() {
-
-		Value b = m_values.top();
-		m_values.pop();
-		Value a = m_values.top();
-		m_values.pop();
-		m_values.push(a / b);
-	}
+    void RVM::BinaryNumber(const std::function<double(double, double)>& op) {
+        if (!m_memory.Peek(0).IsNumber() || !m_memory.Peek(1).IsNumber() ) {
+            RuntimeError("Operands must be numbers.");
+            return;
+        }
+        auto b = m_memory.Pop().As.Number;
+        auto a = m_memory.Pop().As.Number;
+        m_memory.Write(Common::Value(op(a, b)));
+    }
 
 	Byte RVM::Read8() {
 		
@@ -53,12 +43,12 @@ namespace VM {
 		return pc;
 	}
 
-	Value RVM::ReadConstant() {
+	Common::Value RVM::ReadConstant() {
 
-		return m_chunk.m_memory.GetHandle()[Read8()];
+		return m_chunk.m_memory.Get(Read8());
 	}
 
-	Value RVM::ReadConstantLong() {
+	Common::Value RVM::ReadConstantLong() {
 
 		Byte byte1 = Read8();
 		Byte byte2 = Read8();
@@ -78,77 +68,42 @@ namespace VM {
 		
 		Compiler compiler(*this, source);
 		compiler.Compile();
-
+        m_pc = m_chunk.m_bytes.front();
 		return Run();
 	}
 
 	InterpreteResult RVM::Run() {
 
+#ifdef DEBUG_TRACE_EXECUTION
+        m_chunk.Disassemble("");
+#endif
+
 		while (m_index_pc < m_chunk.m_bytes.size()) {
 
-#ifdef DEBUG_TRACE_EXECUTION
-			m_chunk.Disassemble(m_index_pc);
-#endif
-			
-			Byte instruction;
-			switch (instruction = Read8()) {
+            if (m_has_runtime_error)
+                return InterpreteResult::RUNTIME_ERROR;
 
-			case OpCode::Constant: {
-				
-				Value constant = ReadConstant();
-				m_values.push(constant);
-				break;
-			}
-		
-			case OpCode::End: {
+            if (m_finish_interprete)
+                return InterpreteResult::OK;
 
-				m_values.pop();
-				return InterpreteResult::OK;
-			}
+            auto instr_bytecode = static_cast<OpCode>(Read8());
+            auto instr_func = Instruction::RVMInstructions[instr_bytecode];
+            instr_func(*this, m_chunk, m_memory);
 
-			case OpCode::Constant_Long: {
+        }
 
-				Value constant = ReadConstantLong();
-				m_values.push(constant);
-				break;
-			}
+        return InterpreteResult::OK;
+    }
 
-			case OpCode::Negate: {
-			
-				auto& negate_value = m_values.top();
-				m_values.push(-negate_value);
-				m_values.pop();
-				break;
-			}
-			
-			case OpCode::Add: {
-			
-				BinaryAdd();
-				break;
-			}
-			
-			case OpCode::Substract: {
-			
-				BinarySub();
-				break;
-			}
-			
-			case OpCode::Divide: {
-				
-				BinaryDiv();
-				break;
-			}
+    void RVM::Free() {
+        m_memory.Free();
+        m_chunk.Free();
+    }
 
-			case OpCode::Multiply: {
-				
-				BinaryMul();
-				break;
-			}
+    void RVM::FinishInterprete() {
+        m_finish_interprete = true;
+    }
 
-			default: break;
-			}
-		}
-	}
 
 }
 
