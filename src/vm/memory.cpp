@@ -5,40 +5,46 @@
 
 namespace VM {
 
-	void Memory::PrintValue(const Common::Value& value, bool ln, bool isDebug) {
-		switch (value.VType) {
-            case Common::Value::Type::TNumber:
-                std::cout << value.As.Number;
+	void Memory::PrintValue(const Ref<Common::Value> value, bool ln, bool isDebug) {
+        switch (value->Type()) {
+            case Common::ValType::TBoolean:
+                std::cout << Cast<Common::VBoolean>(value)->Get();
                 break;
-            case Common::Value::Type::TNull:
-                std::cout << "null";
+            case Common::ValType::TFloat32:
+                std::cout << Cast<Common::VFloat32>(value)->Get();
                 break;
-            case Common::Value::Type::TBool:
-                std::cout << (value.As.Boolean ? "true" : "false");
+            case Common::ValType::TFloat64:
+                std::cout << Cast<Common::VFloat64>(value)->Get();
                 break;
-            case Common::Value::Type::TObject:
-                PrintObject(value, isDebug);
+            case Common::ValType::TInt32:
+                std::cout << Cast<Common::VInt32>(value)->Get();
                 break;
-            default:
+            case Common::ValType::TUint32:
+                std::cout << Cast<Common::VUint32>(value)->Get();
                 break;
-		}
+            case Common::ValType::TInt64:
+                std::cout << Cast<Common::VInt64>(value)->Get();
+                break;
+            case Common::ValType::TUint64:
+                std::cout << Cast<Common::VUint64>(value)->Get();
+                break;
+            case Common::ValType::TString: {
+                auto str = std::string(Cast<Common::VString>(value)->Get());
+                if (isDebug) str.erase(std::remove(str.begin(), str.end(), '\n'), str.cend());
+                std::cout << str;
+                break;
+            }
+            case Common::ValType::TFunction:
+            case Common::ValType::TChar:
+            case Common::ValType::TNull:
+            case Common::ValType::TUnit:
+                std::cout << value->ToString();
+                break;
+        }
 		if (ln) std::cout << "\n";
 	}
 
-    void Memory::PrintObject(const Common::Value &obj, bool isDebug) {
-        switch (obj.AsObject()->OType) {
-            case Common::Object::Type::String: {
-                std::string str = std::string(obj.AsString()->String);
-                if (isDebug)
-                    str.erase(std::remove(str.begin(), str.end(), '\n'), str.cend());
-                std::cout << "\"" << str << "\"";
-                break;
-            }
-            default: break;
-        }
-    }
-
-	void Memory::Write(const Common::Value& value) {
+	void Memory::Write(const Ref<Common::Value> value) {
 		m_values.push_back(value);
 	}
 
@@ -46,18 +52,17 @@ namespace VM {
 		return m_values.size();
 	}
 
-	std::vector<Common::Value>& Memory::GetHandle() {
+	std::vector<Ref<Common::Value>>& Memory::GetHandle() {
 		return m_values;
 	}
 
-    Common::Value Memory::Pop() {
-
+    Ref<Common::Value> Memory::Pop() {
         auto item = m_values.back();
         m_values.pop_back();
         return item;
     }
 
-    Common::Value Memory::Peek(const std::size_t& distance) {
+    Ref<Common::Value> Memory::Peek(const std::size_t& distance) {
         return Get(m_values.size() - 1 - distance);
     }
 
@@ -65,7 +70,7 @@ namespace VM {
         m_values.clear();
     }
 
-    Common::Value Memory::Get(const std::size_t& address) {
+    Ref<Common::Value> Memory::Get(const std::size_t& address) {
         return m_values[address];
     }
 

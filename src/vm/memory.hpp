@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include "common/common.hpp"
 #include "common/value.hpp"
 
 namespace VM {
@@ -9,17 +8,16 @@ namespace VM {
 class Memory {
 
 public:
-	static void PrintValue(const Common::Value& value, bool ln = false, bool isDebug = false);
-    static void PrintObject(const Common::Value &obj, bool isDebug);
+	static void PrintValue(const Ref<Common::Value> value, bool ln = false, bool isDebug = false);
 
 public:
-    void Write(const Common::Value& value);
+    void Write(const Ref<Common::Value> value);
     void Free();
-    Common::Value Get(const std::size_t& address);
-    Common::Value Pop();
-    Common::Value Peek(const std::size_t& distance);
+    Ref<Common::Value> Get(const std::size_t& address);
+    Ref<Common::Value> Pop();
+    Ref<Common::Value> Peek(const std::size_t& distance = 0);
 	[[nodiscard]] std::size_t Size() const;
-	std::vector<Common::Value>& GetHandle();
+	std::vector<Ref<Common::Value>>& GetHandle();
 
 public:
 	Memory() = default;
@@ -28,7 +26,7 @@ public:
     ~Memory() = default;
 
 private:
-	std::vector<Common::Value> m_values;
+	std::vector<Ref<Common::Value>> m_values;
 
 };
 

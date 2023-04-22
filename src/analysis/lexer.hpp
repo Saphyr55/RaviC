@@ -10,10 +10,10 @@
 
 namespace Analysis {
 
-class Token {
+struct Token {
 
 public:
-	enum class Kind {
+    enum class Kind {
 		TkEOF,
 		Func,
 		Number,
@@ -42,10 +42,10 @@ public:
 		CloseBracket,
 		OpenParenthesis,
 		CloseParenthesis,
-		BinaryAnd,
 		LogicalAnd,
-		BinaryOr,
-		LogicalOr,
+        LogicalOr,
+        BinaryAnd,
+        BinaryOr,
 		Comma,
 		Assign,
 		Not,
@@ -60,24 +60,17 @@ public:
 	};
 
 public:
-	Token(
-		Kind kindType,
-		std::string_view text,
-		std::size_t line,
-		std::size_t col
-	) :
-            Type(kindType),
-            Text(text),
-            Line(line),
-            Col(col)
-	{ }
+    static std::string ToString(Kind kind);
+
+public:
+	Token(Kind kindType, std::string_view text, std::size_t line, std::size_t col) :
+        Type(kindType), Text(text), Line(line), Col(col) { }
+
+public:
 	Kind Type;
 	std::string Text;
 	std::size_t Line;
-	std::size_t Col;
-
-	static std::string ToString(Kind kind);
-
+    std::size_t Col;
 };
 
 using RToken = Ref<Token>;

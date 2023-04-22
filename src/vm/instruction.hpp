@@ -32,7 +32,11 @@ public:
     static void Print(RVM&, Chunk&, Memory&);
     static void Pop(RVM&, Chunk&, Memory&);
     static void Store(RVM&, Chunk&, Memory&);
-    static void Load(RVM&, Chunk &, Memory&);
+    static void BinaryAnd(RVM&, Chunk&, Memory&);
+    static void BinaryOr(RVM&, Chunk&, Memory&);
+    static void LogicalAnd(RVM&, Chunk&, Memory&);
+    static void LogicalOr(RVM&, Chunk&, Memory&);
+    static void Load(RVM&, Chunk&, Memory&);
 
 };
 

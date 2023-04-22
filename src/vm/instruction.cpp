@@ -11,6 +11,10 @@ namespace VM {
             { OpCode::Substract,    &Instruction::Substract         },
             { OpCode::Divide,       &Instruction::Divide            },
             { OpCode::Multiply,     &Instruction::Multiply          },
+            { OpCode::BinaryAnd,    &Instruction::BinaryAnd         },
+            { OpCode::BinaryOr,     &Instruction::BinaryOr          },
+            { OpCode::LogicalAnd,   &Instruction::LogicalAnd        },
+            { OpCode::LogicalOr,    &Instruction::LogicalOr         },
             { OpCode::Constant,     &Instruction::Constant          },
             { OpCode::ConstantLong, &Instruction::ConstantLong      },
             { OpCode::True,         &Instruction::True              },
@@ -33,41 +37,45 @@ namespace VM {
     }
 
     void Instruction::Print(RVM&, Chunk&, Memory& memory) {
-        auto value = memory.Pop();
-        Memory::PrintValue(value, true);
+        Memory::PrintValue(memory.Pop(), true);
     }
 
     void Instruction::Not(RVM &rvm, Chunk&, Memory& memory) {
         auto value = memory.Pop();
-        if (!value.IsBool()) {
+        if (!value->Is(Common::ValType::TBoolean)) {
             rvm.RuntimeError("Operand must be a boolean.");
             return;
         }
-        memory.Write(Common::Value(!value.As.Boolean));
+        auto result = !Cast<Common::VBoolean>(value)->Get();
+        memory.Write(Common::Value::OfBoolean(result));
     }
 
     void Instruction::Negate(RVM& rvm, Chunk&, Memory& memory) {
         auto negate_value = memory.Pop();
-        if (!negate_value.IsNumber()) {
+        if (!negate_value->IsNumber()) {
             rvm.RuntimeError("Operand must be a number.");
             return;
         }
-        memory.Write(Common::Value(- negate_value.As.Number ));
+        auto result = -Cast<Common::VFloat64>(negate_value)->Get();
+        memory.Write(Common::Value::OfFloat64(result));
     }
 
     void Instruction::Add(RVM& rvm, Chunk&, Memory& memory) {
 
-        auto firstIsString = memory.Peek(0).IsString();
-        auto secondIsString = memory.Peek(1).IsString();
+        bool firstIsString = memory.Peek()->IsString();
+        bool secondIsString = memory.Peek(1)->IsString();
 
         if (firstIsString && secondIsString) {
-
-            auto first = memory.Pop().AsString()->String;
-            auto second = memory.Pop().AsString()->String;
-            memory.Write(Common::Value(std::string(second + first)));
-        } else {
-            rvm.BinaryNumber(std::plus());
+            auto first = memory.Pop();
+            auto second = memory.Pop();
+            auto result =
+                    Cast<Common::VString>(second)->Get() +
+                    Cast<Common::VString>(first)->Get();
+            memory.Write(Common::Value::OfString(result));
+            return;
         }
+
+        rvm.BinaryNumber(std::plus());
     }
 
     void Instruction::Substract(RVM& rvm, Chunk&, Memory&) {
@@ -90,15 +98,15 @@ namespace VM {
     }
 
     void Instruction::True(RVM&, Chunk&, Memory& memory) {
-        memory.Write(Common::Value(true));
+        memory.Write(Common::Value::OfTrue());
     }
 
     void Instruction::False(RVM&, Chunk&, Memory& memory) {
-        memory.Write(Common::Value(false));
+        memory.Write(Common::Value::OfFalse());
     }
 
     void Instruction::Null(RVM&, Chunk&, Memory& memory) {
-        memory.Write(Common::Value());
+        memory.Write(Common::Value::OfNull());
     }
 
     void Instruction::ConstantLong(RVM& rvm, Chunk&, Memory& memory) {
@@ -109,79 +117,88 @@ namespace VM {
     void Instruction::NotEqual(RVM&, Chunk&, Memory& memory) {
         auto v1 = memory.Pop();
         auto v2 = memory.Pop();
-        memory.Write(Common::Value(!v1.IsEqual(v2)));
+        auto newValue = Common::Value::OfBoolean(!(*v1 == v2));
+        memory.Write(newValue);
     }
 
     void Instruction::Equal(RVM&, Chunk&, Memory& memory) {
         auto v1 = memory.Pop();
         auto v2 = memory.Pop();
-        memory.Write(Common::Value(v1.IsEqual(v2)));
+        auto newValue = Common::Value::OfBoolean(*v1 == v2);
+        memory.Write(newValue);
     }
 
-    void Instruction::LessEqual(RVM& rvm, Chunk&, Memory& memory) {
-        auto v1 = memory.Pop();
-        auto v2 = memory.Pop();
-        if (!v1.IsNumber() || !v2.IsNumber()) {
-            rvm.RuntimeError("Operand must be a number.");
-            return;
-        }
-        memory.Write(Common::Value(v1.AsNumber() <= v2.AsNumber()));
+    void Instruction::LessEqual(RVM& rvm, Chunk&, Memory&) {
+        rvm.ComparisonNumber([](double a, double b) -> bool {
+            return a <= b;
+        });
     }
 
-    void Instruction::Less(RVM& rvm, Chunk&, Memory& memory) {
-        auto v1 = memory.Pop();
-        auto v2 = memory.Pop();
-        if (!v1.IsNumber() || !v2.IsNumber()) {
-            rvm.RuntimeError("Operand must be a number.");
-            return;
-        }
-        memory.Write(Common::Value(v1.As.Number < v2.As.Number));
+    void Instruction::Less(RVM& rvm, Chunk&, Memory&) {
+        rvm.ComparisonNumber([](double a, double b) -> bool {
+            return a < b;
+        });
     }
 
-    void Instruction::GreaterEqual(RVM& rvm, Chunk&, Memory& memory) {
-        auto v1 = memory.Pop();
-        auto v2 = memory.Pop();
-        if (!v1.IsNumber() || !v2.IsNumber()) {
-            rvm.RuntimeError("Operand must be a number.");
-            return;
-        }
-        memory.Write(Common::Value(v1.As.Number >= v2.As.Number));
+    void Instruction::GreaterEqual(RVM& rvm, Chunk&, Memory&) {
+        rvm.ComparisonNumber([](double a, double b) -> bool {
+            return a >= b;
+        });
     }
 
-    void Instruction::Greater(RVM& rvm, Chunk&, Memory& memory) {
-        auto v1 = memory.Pop();
-        auto v2 = memory.Pop();
-        if (!v1.IsNumber() || !v2.IsNumber()) {
-            rvm.RuntimeError("Operand must be a number.");
-            return;
-        }
-        memory.Write(Common::Value(v1.As.Number > v2.As.Number));
+    void Instruction::Greater(RVM& rvm, Chunk&, Memory&) {
+        rvm.ComparisonNumber([](double a, double b) -> bool {
+            return a > b;
+        });
     }
 
-    void Instruction::Pop(RVM&, Chunk&, Memory &memory) {
+    void Instruction::Pop(RVM&, Chunk&, Memory& memory) {
         memory.Pop();
     }
 
-    void Instruction::Store(RVM& rvm, Chunk& chunk, Memory &memory) {
-
-        if (!memory.Peek(0).IsString()) {
-            rvm.RuntimeError("Operand must be named.");
+    void Instruction::Store(RVM& rvm, Chunk& chunk, Memory& memory) {
+        auto name = rvm.ReadConstant();
+        if (!name->IsString()) {
+            rvm.RuntimeError("Must be named variable.");
             return;
         }
-
-        auto value = rvm.ReadConstant();
-        auto name = value.AsString()->String;
-        chunk.Add(name, std::make_shared<Common::Value>(memory.Pop()));
+        auto value = memory.Pop();
+        std::string key = Cast<Common::VString>(name)->Get();
+        chunk.Add(key, value);
     }
 
-    void Instruction::Load(VM::RVM& rvm, VM::Chunk& chunk, VM::Memory& memory) {
-        auto name = rvm.ReadConstant().AsString()->String;
-        Ref<Common::Value> value = chunk.Get(name);
+    void Instruction::BinaryAnd(RVM& rvm, Chunk&, Memory& memory) {
+
+    }
+
+    void Instruction::BinaryOr(RVM& rvm, Chunk&, Memory&) {
+
+    }
+
+    void Instruction::LogicalAnd(RVM& rvm, Chunk&, Memory&) {
+        rvm.LogicalOp([](bool a, bool b) -> bool {
+            return a && b;
+        });
+    }
+
+    void Instruction::LogicalOr(RVM& rvm, Chunk&, Memory&) {
+        rvm.LogicalOp([](bool a, bool b) -> bool {
+            return a && b;
+        });
+    }
+
+    void Instruction::Load(RVM& rvm, Chunk& chunk, Memory& memory) {
+
+        auto name_value = rvm.ReadConstant();
+        auto name = Cast<Common::VString>(name_value)->Get();
+        auto value = chunk.Get(name);
+
         if (!value) {
             rvm.RuntimeError("Undefined variable '%s'.", name);
             return;
         }
-        memory.Write(*value);
+
+        memory.Write(value);
     }
 
 }

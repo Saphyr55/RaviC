@@ -7,17 +7,18 @@
 
 namespace Analysis {
 
-    Parser::Parser(VM::Chunk& current_chunk, Lexer& lexer)
-            : m_current_chunk(current_chunk), lexer(lexer) {
-
-    }
+    Parser::Parser(Checker checker, VM::Chunk& current_chunk, Lexer& lexer)
+            : m_current_chunk(current_chunk), lexer(lexer), checker(checker) { }
 
     void Parser::Decleration() {
+
         if (Match(Token::Kind::Let)) {
             LetDeclaration();
-        } else Statement();
-        if (m_panic_mode)
-            Synchronize();
+        } else {
+            Statement();
+        }
+
+        if (m_panic_mode) Synchronize();
     }
 
     void Parser::Statement() {
@@ -39,14 +40,30 @@ namespace Analysis {
     }
 
     void Parser::LetDeclaration() {
+
+        Obj::Let let;
+        let.is_mutable = Match(Token::Kind::Mut);
         Consume(Token::Kind::Identifier, "Expect variable name.");
-        auto addr = IdentifierConstant(m_previous);
-        if (Match(Token::Kind::Assign)) {
+        let.name = CopyString(m_previous);
+        auto v_let = Common::Value::OfLet(let);
+        std::size_t addr = m_current_chunk.AddConstant(v_let);
+
+        if (Match(Token::Kind::Colon)) {
+            Consume(Token::Kind::Identifier, "Expect a type after ':'.");
+            if (!checker.TypeExist(m_previous)) {
+                throw Report("Don't recognize type.");
+            }
+            let.type = CopyString(m_previous);
+        }
+
+        if (m_can_assign && Match(Token::Kind::Assign)) {
             Expression();
+            checker.LetDeclaration(let, *this);
+            Emit16(VM::OpCode::Store, addr);
         } else {
             Emit8(VM::OpCode::Null);
         }
-        Consume(Token::Kind::Semicolon, "Expect ';' after variable declaration.");
+
         Emit16(VM::OpCode::Store, addr);
     }
 
@@ -55,7 +72,13 @@ namespace Analysis {
 	}
 
     void Parser::Let() {
-        Emit16(VM::OpCode::Load, IdentifierConstant(m_previous));
+        std::size_t addr = IdentifierConstant(m_previous);
+        if (m_can_assign && Match(Token::Kind::Assign)) {
+            Expression();
+            Emit16(VM::OpCode::Store, addr);
+        } else {
+            Emit16(VM::OpCode::Load, addr);
+        }
     }
 
     void Parser::Literal() {
@@ -68,11 +91,12 @@ namespace Analysis {
     }
 
     void Parser::String() {
-        EmitConstant(Common::Value(CopyStringDQ(m_previous)));
+        EmitConstant(Common::Value::OfString(CopyStringDQ(m_previous)));
     }
 
 	void Parser::Number() {
-		Common::Value value(std::strtod(m_previous->Text.c_str(), nullptr));
+        auto number = std::strtod(m_previous->Text.c_str(), nullptr);
+		auto value = Common::Value::OfFloat64(number);
 		EmitConstant(value);
 	}
 
@@ -129,6 +153,7 @@ namespace Analysis {
             throw Report("Expect expression.");
         }
 
+        m_can_assign = pre <= Precedence::ASSIGNMENT;
 		rule.prefix(*this);
 
 		while (pre <= Rule::Get(m_current->Type).precedence) {
@@ -137,10 +162,10 @@ namespace Analysis {
 			Rule previous_rule = Rule::Get(m_previous->Type);
 			previous_rule.infix(*this);
 		}
-	}
 
-    Byte Parser::IdentifierConstant(const Ref<Token>& name) {
-        return m_current_chunk.AddConstant(Common::Value(CopyString(name)));
+        if (m_can_assign && Match(Token::Kind::Assign)) {
+            throw Report("Invalid assignment target.");
+        }
     }
 
     std::string Parser::CopyStringDQ(const Ref<Token>& tk) {
@@ -148,11 +173,10 @@ namespace Analysis {
     }
 
     std::string Parser::CopyString(const Ref<Token>& tk) {
-        return tk->Text.substr(0,  tk->Text.size() - 1);
+        return tk->Text;
     }
 
     Ref<Token> Parser::Consume(Token::Kind kind, const std::string_view message) {
-		
 		if (Check(kind)) 
 			return Advance();
 		
@@ -160,7 +184,6 @@ namespace Analysis {
 	}
 
 	Ref<Token> Parser::Advance() {
-
 		m_previous = m_current;
 		m_current = Peek();
 		return m_current;
@@ -197,27 +220,6 @@ namespace Analysis {
 			std::to_string(tk->Line + 1) + " for '" + tk->Text + "' | " + std::string(msg);
 	}
 
-	void Parser::Emit8(const Byte& byte) {
-		m_current_chunk.SetLine(m_previous->Line);
-		m_current_chunk.Write8(byte);
-	}
-
-	void Parser::Emit16(const Byte& byte1, const Byte& byte2) {
-		m_current_chunk.SetLine(m_previous->Line);
-		m_current_chunk.Write16(byte1, byte2);
-	}
-
-	void Parser::EmitConstant(const Common::Value& value) {
-
-		auto constant = m_current_chunk.AddConstant(value);
-		
-		if (constant > UINT8_MAX) {
-			throw Report("Too many constants in one chunk.");
-		}
-		
-		Emit16(VM::OpCode::Constant, constant);
-	}
-
     bool Parser::Match(Token::Kind kind) {
         if (!Check(kind))
             return false;
@@ -231,7 +233,7 @@ namespace Analysis {
         m_panic_mode = false;
 
         while (m_current->Type != Token::Kind::TkEOF) {
-            if (m_previous->Type == Token::Kind::Semicolon) return;
+            // if (m_previous->Type == Token::Kind::Semicolon) return;
             switch (m_current->Type) {
                 case Token::Kind::Class:
                 case Token::Kind::Func:
@@ -248,6 +250,32 @@ namespace Analysis {
         }
     }
 
+    std::size_t Parser::IdentifierConstant(const Ref<Token> &name) {
+        auto value = Common::Value::OfString(CopyString(name));
+        return m_current_chunk.AddConstant(value);
+    }
+
+    void Parser::Emit8(const Byte& byte) {
+        m_current_chunk.SetLine(m_previous->Line);
+        m_current_chunk.Write8(byte);
+    }
+
+    void Parser::Emit16(const Byte& byte1, const Byte& byte2) {
+        m_current_chunk.SetLine(m_previous->Line);
+        m_current_chunk.Write16(byte1, byte2);
+    }
+
+    void Parser::EmitConstant(const Ref<Common::Value>& value) {
+
+        auto constant = m_current_chunk.AddConstant(value);
+
+        if (constant > UINT8_MAX) {
+            throw Report("Too many constants in one chunk.");
+        }
+
+        Emit16(VM::OpCode::Constant, constant);
+    }
+
     Parser::Rule Parser::Rule::Get(Token::Kind type) {
 		return rules[type];
 	}
@@ -256,39 +284,39 @@ namespace Analysis {
 		: prefix(std::move(prefix)), infix(std::move(infix)), precedence(precedence) { }
 
 	std::unordered_map<Token::Kind, Parser::Rule> Parser::Rule::rules = {
-		{Token::Kind::OpenParenthesis,  Rule(&Parser::Grouping,		nullptr,	Precedence::NONE)},
-		{Token::Kind::CloseParenthesis, Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::OpenBracket,		Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::CloseBracket,		Rule(nullptr,					nullptr,	Precedence::NONE)},
+        {Token::Kind::Assign,		    Rule(nullptr,                 nullptr,	Precedence::NONE)},
+        {Token::Kind::OpenParenthesis,  Rule(&Parser::Grouping,		nullptr,	Precedence::NONE)},
+		{Token::Kind::CloseParenthesis, Rule(nullptr,				    nullptr,	Precedence::NONE)},
+		{Token::Kind::OpenBracket,	    Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::CloseBracket,	    Rule(nullptr,					nullptr,	Precedence::NONE)},
 		{Token::Kind::Comma,			Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::Dot,				Rule(nullptr,					nullptr,	Precedence::NONE)},
-        {Token::Kind::Not,				Rule(&Parser::Unary,			nullptr,	Precedence::NONE)},
+		{Token::Kind::Dot,			    Rule(nullptr,					nullptr,	Precedence::NONE)},
+        {Token::Kind::Not,			    Rule(&Parser::Unary,			nullptr,	Precedence::NONE)},
         {Token::Kind::Minus,			Rule(&Parser::Unary,   &Parser::Binary,	Precedence::TERM)},
-		{Token::Kind::Plus,				Rule(nullptr,		    &Parser::Binary,	Precedence::TERM)},
+		{Token::Kind::Plus,			    Rule(nullptr,		    &Parser::Binary,	Precedence::TERM)},
 		{Token::Kind::Semicolon,		Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::Slash,			Rule(nullptr,			&Parser::Binary,	Precedence::FACTOR)},
-		{Token::Kind::Star,				Rule(nullptr,			&Parser::Binary,	Precedence::FACTOR)},
-		{Token::Kind::Assign,			Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::NotEqual,			Rule(nullptr,			&Parser::Binary,	Precedence::EQUALITY)},
+		{Token::Kind::Slash,		    Rule(nullptr,			&Parser::Binary,	Precedence::FACTOR)},
+		{Token::Kind::Star,			    Rule(nullptr,			&Parser::Binary,	Precedence::FACTOR)},
+		{Token::Kind::NotEqual,		    Rule(nullptr,			&Parser::Binary,	Precedence::EQUALITY)},
 		{Token::Kind::Equal,			Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
 		{Token::Kind::Greater,			Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
 		{Token::Kind::GreaterEqual,		Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
-		{Token::Kind::Less,				Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
-		{Token::Kind::LessEqual,		Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
-		{Token::Kind::Identifier,		Rule(&Parser::Let,				nullptr,	Precedence::NONE)},
-		{Token::Kind::String,			Rule(&Parser::String,			nullptr,	Precedence::NONE)},
-		{Token::Kind::Number,			Rule(&Parser::Number,			nullptr,	Precedence::NONE)},
+		{Token::Kind::Less,			    Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::LessEqual,	    Rule(nullptr,			&Parser::Binary,	Precedence::COMPARISON)},
+		{Token::Kind::Identifier,       Rule(&Parser::Let,            nullptr,   Precedence::NONE)},
+		{Token::Kind::String,           Rule(&Parser::String,			nullptr,	Precedence::NONE)},
+		{Token::Kind::Number,		    Rule(&Parser::Number,			nullptr,	Precedence::NONE)},
 		{Token::Kind::LogicalAnd,		Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::Else,				Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::False,			Rule(&Parser::Literal,		    nullptr,	Precedence::NONE)},
-        {Token::Kind::True,				Rule(&Parser::Literal,		    nullptr,	Precedence::NONE)},
-        {Token::Kind::Null,				Rule(&Parser::Literal,		    nullptr,	Precedence::NONE)},
+		{Token::Kind::Else,			    Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::False,		    Rule(&Parser::Literal,		nullptr,	Precedence::NONE)},
+        {Token::Kind::True,				Rule(&Parser::Literal,		nullptr,	Precedence::NONE)},
+        {Token::Kind::Null,				Rule(&Parser::Literal,        nullptr,	Precedence::NONE)},
         {Token::Kind::For,				Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::Func,				Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::If,				Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::LogicalOr,		Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::Return,			Rule(nullptr,					nullptr,	Precedence::NONE)},
-		{Token::Kind::Let,				Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Func,			    Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::If,			    Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::LogicalOr,	    Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Return,		    Rule(nullptr,					nullptr,	Precedence::NONE)},
+		{Token::Kind::Let,				Rule(nullptr,                 nullptr,	Precedence::NONE)},
 		{Token::Kind::TkEOF,			Rule(nullptr,					nullptr,	Precedence::NONE)},
 	};
 

@@ -1,5 +1,4 @@
 #include "vm/compiler.hpp"
-#include "vm/virtual_machine.hpp"
 
 namespace VM {
 
@@ -17,7 +16,7 @@ namespace VM {
     }
 
     Compiler::Compiler(RVM& vm, std::string_view source)
-        : lexer(source), parser(vm.CurrentChunk(), lexer), vm(vm)
+        : lexer(source), parser(Analysis::Checker(vm), vm.CurrentChunk(), lexer), vm(vm)
     {
 
     }

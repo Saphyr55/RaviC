@@ -14,17 +14,18 @@ class RVM;
 class Chunk {
 
 public:
-	std::size_t AddConstant(const Common::Value& value);
+	std::size_t AddConstant(const Ref<Common::Value>& value);
     void Add(const std::string& key, Ref<Common::Value> value);
     Ref<Common::Value> Get(const std::string& key);
 	std::size_t Disassemble(std::size_t offset);
-	void Disassemble(std::string_view name);
+	void Disassemble();
 	void Write8(const Byte& byte);
 	void Write16(const Byte& byte1, const Byte& byte2);
-	void WriteConstantLong(const Common::Value& value);
-	void WriteConstant(const Common::Value& value);
+	void WriteConstantLong(const Ref<Common::Value>& value);
+	void WriteConstant(const Ref<Common::Value>& value);
 	inline void SetLine(std::size_t line) { m_current_line = line; }
     void Free();
+    Memory& GetMemory();
 
 public:
 	Chunk() = default;

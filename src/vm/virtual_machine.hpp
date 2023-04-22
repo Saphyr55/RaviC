@@ -12,26 +12,30 @@ namespace VM {
 enum OpCode : Byte {
 	Constant = 0,
 	End = 1,
-	Negate,
-	Add,
-    NotEqual,
-    Equal,
-    LessEqual,
-    Less,
-    GreaterEqual,
-    Greater,
-    Substract,
-	Multiply,
-	Divide,
-	ConstantLong,
-    True,
-    False,
-    Null,
-    Not,
-    Print,
-    Pop,
-    Store,
-    Load
+	Negate = 2,
+	Add = 3,
+    NotEqual = 8,
+    Equal = 7,
+    LessEqual = 10,
+    Less = 9,
+    GreaterEqual = 12,
+    Greater = 11,
+    Substract = 4,
+	Multiply = 5,
+	Divide = 6,
+	ConstantLong = 21,
+    True = 13,
+    False = 14,
+    Null = 15,
+    Not = 16,
+    Print = 17,
+    Pop = 18,
+    Store = 19,
+    Load = 20,
+    BinaryAnd,
+    BinaryOr,
+    LogicalAnd,
+    LogicalOr
 };
 
 enum class InterpreteResult {
@@ -43,32 +47,35 @@ enum class InterpreteResult {
 class RVM {
 
 public:
-    void RuntimeError(const char* format, ...);
+	void CompileError(const char* format, ...);
+	void RuntimeError(const char* format, ...);
 	InterpreteResult Run(std::string_view source);
 	InterpreteResult Run();
 	Byte Read8();
-	Common::Value ReadConstant();
-	Common::Value ReadConstantLong();
+    Ref<Common::Value> ReadConstant();
+    Ref<Common::Value> ReadConstantLong();
 	Chunk& CurrentChunk();
     void BinaryNumber(const std::function<double(double, double)>& op);
+    void ComparisonNumber(const std::function<bool(double, double)> &op);
+    void LogicalOp(const std::function<bool(bool, bool)> &op);
     void Free();
-    inline Memory& GetMemory() { return m_memory; }
     void FinishInterprete();
+    bool CheckMemoryNumber(Memory &memory);
 
 public:
-	explicit RVM(Chunk& c);
 	RVM() = default;
+    RVM(int argc, char** argv);
 	RVM(const RVM&) = default;
 	RVM(RVM&&) = default;
 	~RVM() = default;
 
 private:
-	Memory m_memory;
 	std::size_t m_index_pc = 0;
 	Byte m_pc = OpCode::End;
 	Chunk m_chunk;
     bool m_has_runtime_error = false;
     bool m_finish_interprete = false;
+	bool m_has_compiler_error = false;
 };
 
 }

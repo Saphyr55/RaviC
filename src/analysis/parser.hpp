@@ -3,9 +3,10 @@
 #include <unordered_map>
 #include <functional>
 
-#include "common/common.hpp"
-#include "analysis/lexer.hpp"
 #include "vm/chunk.hpp"
+#include "analysis/lexer.hpp"
+#include "analysis/checker.hpp"
+#include "common/value.hpp"
 
 namespace Analysis {
 
@@ -52,21 +53,23 @@ public:
 	std::string Diagnostic(const Ref<Token>& tk, std::string_view msg);
 	void Emit8(const Byte& byte);
 	void Emit16(const Byte& byte1, const Byte& byte2);
-	void EmitConstant(const Common::Value& value);
-    Byte IdentifierConstant(const Ref<Analysis::Token> &name);
+	void EmitConstant(const Ref<Common::Value>& value);
+    std::size_t IdentifierConstant(const Ref<Token> &name);
     static std::string CopyString(const Ref<Token>& tk);
     static std::string CopyStringDQ(const Ref<Token>& tk);
 
 public:
-    Parser(VM::Chunk& current_chunk, Lexer& lexer);
+    Parser(Checker checker, VM::Chunk& current_chunk, Lexer& lexer);
     ~Parser() = default;
 
 private:
+    Checker checker;
     Lexer lexer;
     Ref<Token> m_current;
     Ref<Token> m_previous;
 	VM::Chunk& m_current_chunk;
     bool m_panic_mode = false;
+    bool m_can_assign = true;
 
 private:
 
@@ -89,7 +92,6 @@ private:
 	static std::unordered_map<Token::Kind, Rule> rules;
 
 };
-
 
 };
 

@@ -68,9 +68,6 @@ namespace Analysis {
             case Colon:
                 AddToken(Token::Kind::Colon);
                 break;
-            case Semicolon:
-                AddToken(Token::Kind::Semicolon);
-                break;
             case MinusOp:
                 AddToken(Match(Greater) ? Token::Kind::Arrow : Token::Kind::Minus);
                 break;
@@ -86,14 +83,12 @@ namespace Analysis {
             case BackslashN: {
                 m_line++;
                 m_col = 0;
+                NextToken();
                 break;
             }
+            case Semicolon:
             case Space:
-                NextToken();
-                break;
             case BackslashR:
-                NextToken();
-                break;
             case BackslashT:
                 NextToken();
                 break;

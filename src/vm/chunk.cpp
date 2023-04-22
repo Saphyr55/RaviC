@@ -9,16 +9,20 @@
 
 namespace VM {
 
-	void Chunk::Disassemble(std::string_view name) {
-		std::cout << name << "\n";
-		for (std::size_t offset = 0; offset < m_bytes.size();) {
-			offset = Disassemble(offset);
+	void Chunk::Disassemble() {
+
+        std::cout << "---------------------------" << "\n";
+        std::cout << "- Disassemble bytecode... -" << "\n";
+        std::cout << "---------------------------" << "\n";
+
+        for (std::size_t offset = 0; offset < m_bytes.size();) {
+            offset = Disassemble(offset);
 		}
 	}
 
 	std::size_t Chunk::Disassemble(std::size_t offset) {
 
-		std::printf("%04zu ", offset);
+		std::printf("%08zX ", offset);
 
 		if (offset > 0 && m_lines[offset] == m_lines[offset - 1])
 			std::cout << "   | ";
@@ -28,28 +32,29 @@ namespace VM {
 		Byte instruction = m_bytes[offset];
 
 		switch (instruction) {
-            case OpCode::Not:               return SimpleInstruction("Not", offset);
-            case OpCode::End :              return SimpleInstruction("Return", offset);
-            case OpCode::Constant:          return ConstantInstruction("Constant", offset);
-            case OpCode::ConstantLong:      return ConstantInstructionLong("Constant Long", offset);
-            case OpCode::Negate:            return SimpleInstruction("Negate", offset);
-            case OpCode::Add:               return SimpleInstruction("Add", offset);
-            case OpCode::Substract:         return SimpleInstruction("Substract", offset);
-            case OpCode::Multiply:          return SimpleInstruction("Multiply", offset);
-            case OpCode::Divide:            return SimpleInstruction("Divide", offset);
-            case OpCode::Null:              return SimpleInstruction("TNull", offset);
-            case OpCode::False:             return SimpleInstruction("False", offset);
-            case OpCode::True:              return SimpleInstruction("True", offset);
-            case OpCode::Less:              return SimpleInstruction("Less", offset);
-            case OpCode::LessEqual:         return SimpleInstruction("LessEqual", offset);
-            case OpCode::Greater:           return SimpleInstruction("Greater", offset);
+            case OpCode::Not:               return SimpleInstruction("Not",          offset);
+            case OpCode::End :              return SimpleInstruction("End",          offset);
+            case OpCode::Negate:            return SimpleInstruction("Negate",       offset);
+            case OpCode::Add:               return SimpleInstruction("Add",          offset);
+            case OpCode::Substract:         return SimpleInstruction("Substract",    offset);
+            case OpCode::Multiply:          return SimpleInstruction("Multiply",     offset);
+            case OpCode::Divide:            return SimpleInstruction("Divide",       offset);
+            case OpCode::Null:              return SimpleInstruction("Null",         offset);
+            case OpCode::False:             return SimpleInstruction("False",        offset);
+            case OpCode::True:              return SimpleInstruction("True",         offset);
+            case OpCode::Less:              return SimpleInstruction("Less",         offset);
+            case OpCode::LessEqual:         return SimpleInstruction("LessEqual",    offset);
+            case OpCode::Greater:           return SimpleInstruction("Greater",      offset);
             case OpCode::GreaterEqual:      return SimpleInstruction("GreaterEqual", offset);
-            case OpCode::Equal:             return SimpleInstruction("Equal", offset);
-            case OpCode::NotEqual:          return SimpleInstruction("NotEqual", offset);
-            case OpCode::Print:             return SimpleInstruction("Print", offset);
-            case OpCode::Pop:               return SimpleInstruction("Pop", offset);
-            case OpCode::Store:             return SimpleInstruction("Store", offset);
-            case OpCode::Load:              return SimpleInstruction("Load", offset);
+            case OpCode::Equal:             return SimpleInstruction("Equal",        offset);
+            case OpCode::NotEqual:          return SimpleInstruction("NotEqual",     offset);
+            case OpCode::Print:             return SimpleInstruction("Print",        offset);
+            case OpCode::Pop:               return SimpleInstruction("Pop",          offset);
+
+            case OpCode::Store:             return ConstantInstruction("Store",             offset);
+            case OpCode::Load:              return ConstantInstruction("Load",              offset);
+            case OpCode::Constant:          return ConstantInstruction("Constant",          offset);
+            case OpCode::ConstantLong:      return ConstantInstructionLong("Constant Long", offset);
 
             default:
                 std::cout << "Unknown opcode" << instruction << "\n";
@@ -64,9 +69,9 @@ namespace VM {
 
 	std::size_t Chunk::ConstantInstruction(std::string_view name, std::size_t offset) {
 
-		Byte constant = m_bytes[offset + 1];
-		std::printf("%-16s %4d '", name.data(), constant);
-		Memory::PrintValue(m_memory.GetHandle()[constant], false, true);
+		Byte addr = m_bytes[offset + 1];
+		std::printf("%-16s %4d '", name.data(), addr);
+		Memory::PrintValue(m_memory.Get(addr), false, true);
 		std::printf("'\n");
 		return offset + 2;
 	}
@@ -75,7 +80,7 @@ namespace VM {
 
 		Byte bytes[] = { m_bytes[offset + 1],  m_bytes[offset + 2] };
 		std::size_t addr;
-		memcpy(&addr, bytes, sizeof(std::size_t));
+		std::memcpy(&addr, bytes, sizeof(std::size_t));
 		std::printf("%-16s %4zu '", name.data(), addr);
 		Memory::PrintValue(m_memory.GetHandle()[addr], false, true);
 		std::printf("'\n");
@@ -94,25 +99,23 @@ namespace VM {
 		Write8(byte2);
 	}
 
-	void Chunk::WriteConstantLong(const Common::Value& value) {
+	void Chunk::WriteConstantLong(const Ref<Common::Value>& value) {
 
 		std::size_t addr = AddConstant(value);
 		
-		Byte bytes[2];
-		bytes[0] = (addr >> 8) & 0xFF;
-		bytes[1] = (addr >> 0) & 0xFF;
-		
+        Byte bytes[2];
+        bytes[0] = (addr >> 8) & 0xFF;
+        bytes[1] = (addr >> 0) & 0xFF;
+
 		Write8(OpCode::ConstantLong);
 		Write16(bytes[0], bytes[1]);
 	}
 
-	void Chunk::WriteConstant(const Common::Value& value) {
-
+	void Chunk::WriteConstant(const Ref<Common::Value>& value) {
 		Write16(OpCode::Constant, AddConstant(value));
 	}
 
-	std::size_t Chunk::AddConstant(const Common::Value& value) {
-
+	std::size_t Chunk::AddConstant(const Ref<Common::Value>& value) {
 		m_memory.Write(value);
 		return m_memory.Size() - 1;
 	}
@@ -128,6 +131,10 @@ namespace VM {
 
     Ref<Common::Value> Chunk::Get(const std::string &key) {
         return m_values[key];
+    }
+
+    Memory& Chunk::GetMemory() {
+        return m_memory;
     }
 
 
